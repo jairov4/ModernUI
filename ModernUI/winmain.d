@@ -28,15 +28,18 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
 
 class Element : DependencyObject
 {
+	@property @DependencyProperty @Getter double Width() {return 0;}
+	@property @DependencyProperty @Setter void Width(double value) {}
+
 	static this()
 	{
-		RegisterProperty!(Element, TypeInfo)("Test", null);
+		RegisterProperties!Element();
 	}
 }
 
 int myWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
     auto element = new Element;
-    
+
     return 0;
 }

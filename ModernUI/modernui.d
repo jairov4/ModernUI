@@ -82,8 +82,24 @@ class DependencyPropertyDescriptor(TOwner, T) : IDependencyPropertyPrivateDescri
 	}
 }
 
-class DependencyObject : INotifyPropertyChanged
+class Dispatcher
 {
+	void Invoke(void delegate() action)
+	{
+	}
+
+	IObservable!Unit InvokeAsync(void delegate() action)
+	{
+		return null;
+	}
+}
+
+enum DependencyProperty;
+enum Getter;
+enum Setter;
+
+class DependencyObject : INotifyPropertyChanged
+{	
 	private const struct DependencyPropertyKey
 	{
 		TypeInfo OwnerType;
@@ -94,12 +110,16 @@ class DependencyObject : INotifyPropertyChanged
 
 	private Subject!PropertyChange subjectPropertyChanged;
 
-	protected static IDependencyPropertyPrivateDescriptorSpecialized!(TOwner, T) RegisterProperty(TOwner, T)(string name, T baseValue)
-	{
+	private static IDependencyPropertyPrivateDescriptorSpecialized!(TOwner, T) RegisterProperty(TOwner, T)(string name, T baseValue)
+	{		
 		DependencyPropertyKey key = { OwnerType: typeid(TOwner), Name: name };
 		auto descriptor = new DependencyPropertyDescriptor!(TOwner, T)(name, baseValue);
 		descriptors[key] = descriptor;
 		return descriptor;
+	}
+
+	protected static void RegisterProperties(This)()
+	{
 	}
 
 	override @property IObservable!PropertyChange PropertyChanged() { return subjectPropertyChanged; }

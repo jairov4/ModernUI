@@ -12,6 +12,11 @@ interface IObserver(T)
 	void OnError(Exception e);
 }
 
+immutable struct Unit
+{
+	public @property Value() { return Unit.init; } 
+}
+
 interface IObservable(T)
 {
 	ISubscription Subscribe(IObserver!T observer);
