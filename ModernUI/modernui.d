@@ -119,11 +119,28 @@ class ClassDescriptor
 	}
 }
 
+string nameof(alias Identifier)()
+{
+	return __traits(identifier, Identifier);
+}
+
 class DependencyObject : INotifyPropertyChanged
 {
-	private Subject!PropertyChange subjectPropertyChanged;
+	private Subject!PropertyChange subjectPropertyChanged = new Subject!PropertyChange();
 
 	private static ClassDescriptor[TypeInfo] classDescriptors;
+
+	protected bool setAndNotifyPropertyChange(alias Identifier, TValue)(ref TValue val, TValue newValue)
+	{
+		if(val == newValue)
+		{
+			return false;
+		}
+
+		val = newValue;
+		subjectPropertyChanged.OnNext(new PropertyChange());
+		return true;
+	}
 
 	protected static void registerProperties(TheClass)()
 	{
@@ -131,27 +148,30 @@ class DependencyObject : INotifyPropertyChanged
 		IDependencyPropertyDescriptor[string] properties;
 		foreach(memberName; __traits(allMembers, TheClass))
 		{
-			foreach(member; __traits(getOverloads, TheClass, memberName))
+			static if(__traits(getProtection, __traits(getMember, TheClass, memberName)) == "public")
 			{
-				// We are looking for getters
-				static if(isDependencyProperty!member && !is(ReturnType!member == void))
+				foreach(member; __traits(getOverloads, TheClass, memberName))
 				{
-					alias PropertyType = ReturnType!member;
-
-					// We get an invoker for the getter
-					PropertyType delegate(TheClass) getter = (instance) { return __traits(getMember, instance, memberName)(); };
-
-					// Now we will try for the setter, we try to compile to test if it has an available setter method
-					void delegate(TheClass, PropertyType) setter = null;
-					static if(__traits(compiles, setter = (instance, value) { __traits(getMember, instance, memberName)(value); }))
+					// We are looking for getters
+					static if(isDependencyProperty!member && !is(ReturnType!member == void))
 					{
-						setter = (instance, value) { __traits(getMember, instance, memberName)(value); };
+						alias PropertyType = ReturnType!member;
+
+						// We get an invoker for the getter
+						PropertyType delegate(TheClass) getter = (instance) { return __traits(getMember, instance, memberName)(); };
+
+						// Now we will try for the setter, we try to compile to test if it has an available setter method
+						void delegate(TheClass, PropertyType) setter = null;
+						static if(__traits(compiles, setter = (instance, value) { __traits(getMember, instance, memberName)(value); }))
+						{
+							setter = (instance, value) { __traits(getMember, instance, memberName)(value); };
+							break;
+						}
+
+						auto propDesc = new DependencyPropertyDescriptor!(TheClass, PropertyType)(memberName, getter, setter);
+						properties[memberName] = propDesc;
 						break;
 					}
-
-					auto propDesc = new DependencyPropertyDescriptor!(TheClass, PropertyType)(memberName, getter, setter);
-					properties[memberName] = propDesc;
-					break;
 				}
 			}
 		}
