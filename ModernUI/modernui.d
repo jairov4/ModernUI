@@ -6,6 +6,12 @@ import Rx;
 
 class PropertyChange
 {
+	public immutable string name;
+
+	this(string name) 
+	{ 
+		this.name = name; 
+	}
 }
 
 interface INotifyPropertyChanged
@@ -23,9 +29,9 @@ interface IDependencyPropertyDescriptor
 
 	@property bool hasSetter();
 
-	Variant getValue(DependencyObject owner);
+	Variant getValue(IDependencyObject owner);
 
-	void setValue(DependencyObject owner, Variant value);
+	void setValue(IDependencyObject owner, Variant value);
 }
 
 interface IDependencyPropertyDescriptorSpecialized(TOwner, T) : IDependencyPropertyDescriptor
@@ -58,7 +64,7 @@ class DependencyPropertyDescriptor(TOwner, T) : IDependencyPropertyDescriptorSpe
 
 	override @property bool hasSetter() { return this.mySetValue != null; }
 
-	override Variant getValue(DependencyObject owner)
+	override Variant getValue(IDependencyObject owner)
 	{
 		Variant value = this.myGetValue(cast(TOwner)owner);
 		return value;
@@ -69,7 +75,7 @@ class DependencyPropertyDescriptor(TOwner, T) : IDependencyPropertyDescriptorSpe
 		return this.myGetValue(owner);
 	}
 
-	override void setValue(DependencyObject owner, Variant value)
+	override void setValue(IDependencyObject owner, Variant value)
 	{
 		this.mySetValue(cast(TOwner)owner, value.get!T());
 	}
@@ -122,13 +128,22 @@ string nameof(alias Identifier)()
 	return __traits(identifier, Identifier);
 }
 
-class DependencyObject : INotifyPropertyChanged
+interface IDependencyObject : INotifyPropertyChanged
+{
+}
+
+class DependencyObject(Element) : IDependencyObject
 {
 	private Subject!PropertyChange subjectPropertyChanged = new Subject!PropertyChange();
 
 	private static ClassDescriptor[TypeInfo] classDescriptors;
 
-	protected bool setAndNotifyPropertyChange(alias Identifier, TValue)(ref TValue val, TValue newValue)
+	static this()
+	{
+		registerProperties!Element();
+	}
+
+	protected bool setProperty(alias Identifier, TValue)(ref TValue val, TValue newValue)
 	{
 		if(val == newValue)
 		{
@@ -136,7 +151,7 @@ class DependencyObject : INotifyPropertyChanged
 		}
 
 		val = newValue;
-		subjectPropertyChanged.OnNext(new PropertyChange());
+		subjectPropertyChanged.OnNext(new PropertyChange(nameof!Identifier));
 		return true;
 	}
 
@@ -166,6 +181,7 @@ class DependencyObject : INotifyPropertyChanged
 							break;
 						}
 
+						// Build and add the new property descriptor
 						auto propDesc = new DependencyPropertyDescriptor!(TheClass, PropertyType)(memberName, getter, setter);
 						properties[memberName] = propDesc;
 						break;
@@ -182,7 +198,7 @@ class DependencyObject : INotifyPropertyChanged
 			baseClassDescriptor = classDescriptors[baseClassTypeInfo];
 		}
 
-		// build and registers the new descriptor
+		// Build and registers the new class descriptor
 		auto classDesc = new ClassDescriptor(__traits(identifier, TheClass), typeid(TheClass), baseClassDescriptor, properties);
 		classDescriptors[typeid(TheClass)] = classDesc;
 	}

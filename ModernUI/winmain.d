@@ -25,16 +25,11 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
     }
 }
 
-class Element : DependencyObject
+class Element : DependencyObject!Element
 {
 	private double myWidth;
 	@property @DependencyProperty double width() {return myWidth;}
-	@property void width(double value) { this.setAndNotifyPropertyChange!width(this.myWidth, value); }
-
-	static this()
-	{
-		registerProperties!Element();
-	}
+	@property void width(double value) { this.setProperty!width(this.myWidth, value); }
 }
 
 int myWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
