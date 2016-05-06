@@ -7,33 +7,32 @@ import ModernUI;
 extern (Windows)
 int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
-    int result;
+	if(!Runtime.initialize())
+	{
+		return -1;
+	}
 
     try
     {
-        Runtime.initialize();
-
-        result = myWinMain(hInstance, hPrevInstance, lpCmdLine, nCmdShow);
-
+        auto result = myWinMain(hInstance, hPrevInstance, lpCmdLine, nCmdShow);
         Runtime.terminate();
+		return result;
     }
     catch (Throwable o) // catch any uncaught exceptions
     {
         MessageBoxA(null, cast(char *)o.toString(), "Error", MB_OK | MB_ICONEXCLAMATION);
-        result = 0;     // failed
+		return -1;
     }
-
-    return result;
 }
 
 class Element : DependencyObject
 {
-	@property @DependencyProperty @Getter double Width() {return 0;}
-	@property @DependencyProperty @Setter void Width(double value) {}
+	@property @DependencyProperty @Getter double width() {return 0;}
+	@property @DependencyProperty @Setter void width(double value) {}
 
 	static this()
 	{
-		RegisterProperties!Element();
+		registerProperties!Element();
 	}
 }
 

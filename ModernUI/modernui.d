@@ -1,5 +1,7 @@
 module ModernUI;
 
+import std.traits;
+import std.variant;
 import Rx;
 
 class PropertyChange
@@ -8,87 +10,85 @@ class PropertyChange
 
 interface INotifyPropertyChanged
 {
-	@property IObservable!PropertyChange PropertyChanged();
+	@property IObservable!PropertyChange propertyChanged();
 }
 
 interface IDependencyPropertyPublicDescriptor
 {
-	@property TypeInfo ValueType();
+	@property TypeInfo valueType();
 
-	@property TypeInfo OwnerType();
+	@property TypeInfo ownerType();
 
-	@property Object BaseValue();
+	@property string name();
 
-	@property string Name();
-
-	Object GetValue(DependencyObject owner);
+	Variant getValue(DependencyObject owner);
 }
 
 interface IDependencyPropertyPublicDescriptorSpecialized(TOwner, T) : IDependencyPropertyPublicDescriptor
 {
-	@property T BaseValueTyped();
-
-	T GetValueTyped(TOwner owner);
+	T getValueTyped(TOwner owner);
 }
 
 interface IDependencyPropertyPrivateDescriptor : IDependencyPropertyPublicDescriptor
 {
-	void SetValue(DependencyObject owner, Object value);
+	void setValue(DependencyObject owner, Variant value);
 }
 
 interface IDependencyPropertyPrivateDescriptorSpecialized(TOwner, T) : IDependencyPropertyPrivateDescriptor, IDependencyPropertyPublicDescriptorSpecialized!(TOwner, T)
 {
-	void SetValueTyped(TOwner owner, T value);
+	void setValueTyped(TOwner owner, T value);
 }
 
 class DependencyPropertyDescriptor(TOwner, T) : IDependencyPropertyPrivateDescriptorSpecialized!(TOwner, T)
 {
-	private string name;
-	private T baseValue;
-	private T delegate() getValueFunc;
-	private void delegate(T) setValueFunc;
+	private string myName;
+	alias Getter = T delegate(TOwner);
+	alias Setter = void delegate(TOwner,T);
+	private Getter myGetValue;
+	private Setter mySetValue;
 
-	this(string name, T baseValue)
+	this(string name, Getter getter, Setter setter)
 	{
-		this.name = name;
-		this.baseValue = baseValue;
+		this.myName = name;
+		this.myGetValue = getter;
+		this.mySetValue = setter;
 	}
 
-	override @property TypeInfo ValueType() { return typeid(T); }
+	override @property TypeInfo valueType() { return typeid(T); }
 
-	override @property TypeInfo OwnerType() { return typeid(TOwner); }
+	override @property TypeInfo ownerType() { return typeid(TOwner); }
 
-	override @property T BaseValueTyped() { return this.baseValue; }
-	override @property Object BaseValue() { return this.baseValue; }
+	override @property string name() { return this.myName; }
 
-	override @property string Name() { return this.name; }
-
-	override Object GetValue(DependencyObject owner)
+	override Variant getValue(DependencyObject owner)
 	{
-		return null;
+		Variant value = this.myGetValue(cast(TOwner)owner);
+		return value;
 	}
 
-	override T GetValueTyped(TOwner owner)
+	override T getValueTyped(TOwner owner)
 	{
-		return null;
+		return this.myGetValue(owner);
 	}
 
-	override void SetValue(DependencyObject owner, Object value)
+	override void setValue(DependencyObject owner, Variant value)
 	{
+		this.mySetValue(cast(TOwner)owner, value.get!T());
 	}
 
-	override void SetValueTyped(TOwner owner, T value)
+	override void setValueTyped(TOwner owner, T value)
 	{
+		this.mySetValue(owner, value);
 	}
 }
 
 class Dispatcher
 {
-	void Invoke(void delegate() action)
+	void invoke(void delegate() action)
 	{
 	}
 
-	IObservable!Unit InvokeAsync(void delegate() action)
+	IObservable!Unit invokeAsync(void delegate() action)
 	{
 		return null;
 	}
@@ -98,29 +98,78 @@ enum DependencyProperty;
 enum Getter;
 enum Setter;
 
-class DependencyObject : INotifyPropertyChanged
-{	
-	private const struct DependencyPropertyKey
+alias helper(alias A) = A;
+
+template isDependencyProperty(alias T) 
+{
+	enum bool isDependencyProperty = isCallable!T && hasUDA!(T, DependencyProperty);
+}
+
+class ClassDescriptor
+{
+	private string myName;
+	private TypeInfo myType;
+	private ClassDescriptor myBase;
+	private IDependencyPropertyPrivateDescriptor[string] myDependencyPropertiesByName;
+
+	public this(string name, TypeInfo type, ClassDescriptor base, IDependencyPropertyPrivateDescriptor[string] dependencyPropertiesByName)
 	{
-		TypeInfo OwnerType;
-		string Name;
+		myName = name;
+		myType = type;
+		myBase = base;
+		myDependencyPropertiesByName = dependencyPropertiesByName;
 	}
+}
 
-	private static IDependencyPropertyPrivateDescriptor[DependencyPropertyKey] descriptors;
-
+class DependencyObject : INotifyPropertyChanged
+{
 	private Subject!PropertyChange subjectPropertyChanged;
 
-	private static IDependencyPropertyPrivateDescriptorSpecialized!(TOwner, T) RegisterProperty(TOwner, T)(string name, T baseValue)
-	{		
-		DependencyPropertyKey key = { OwnerType: typeid(TOwner), Name: name };
-		auto descriptor = new DependencyPropertyDescriptor!(TOwner, T)(name, baseValue);
-		descriptors[key] = descriptor;
-		return descriptor;
-	}
+	private static ClassDescriptor[TypeInfo] classDescriptors;
 
-	protected static void RegisterProperties(This)()
+	protected static void registerProperties(TheClass)()
 	{
+		// Populate the descriptors for each dependency property
+		IDependencyPropertyPrivateDescriptor[string] properties;
+		foreach(memberName; __traits(allMembers, TheClass))
+		{
+			foreach(member; __traits(getOverloads, TheClass, memberName))
+			{
+				// We are looking for getters
+				static if(isDependencyProperty!member && !is(ReturnType!member == void))
+				{
+					alias PropertyType = ReturnType!member;
+
+					// We get an invoker for the getter
+					PropertyType delegate(TheClass) getter = (instance) { return __traits(getMember, instance, memberName)(); };
+
+					// Now we will try for the setter
+					void delegate(TheClass, PropertyType) setter = null;
+					static if(__traits(compiles, setter = (instance, value) { __traits(getMember, instance, memberName)(value); }))
+					{
+						setter = (instance, value) { __traits(getMember, instance, memberName)(value); };
+						break;
+					}
+
+					auto propDesc = new DependencyPropertyDescriptor!(TheClass, PropertyType)(memberName, getter, setter);
+					properties[memberName] = propDesc;
+					break;
+				}
+			}
+		}
+
+		// Get the descriptor for the base class
+		auto baseClassTypeInfo = typeid(__traits(parent, TheClass));
+		ClassDescriptor baseClassDescriptor = null;
+		if(baseClassTypeInfo in classDescriptors)
+		{
+			baseClassDescriptor = classDescriptors[baseClassTypeInfo];
+		}
+
+		// build and registers the new descriptor
+		auto classDesc = new ClassDescriptor(__traits(identifier, TheClass), typeid(TheClass), baseClassDescriptor, properties);
+		classDescriptors[typeid(TheClass)] = classDesc;
 	}
 
-	override @property IObservable!PropertyChange PropertyChanged() { return subjectPropertyChanged; }
+	override @property IObservable!PropertyChange propertyChanged() { return subjectPropertyChanged; }
 }
