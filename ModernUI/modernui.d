@@ -2,6 +2,7 @@ module ModernUI;
 
 import std.traits;
 import std.variant;
+import std.typecons;
 import Rx;
 
 class PropertyChange
@@ -29,9 +30,9 @@ interface IDependencyPropertyDescriptor
 
 	@property bool hasSetter();
 
-	Variant getValue(IDependencyObject owner);
+	Variant getValue(DependencyObject owner);
 
-	void setValue(IDependencyObject owner, Variant value);
+	void setValue(DependencyObject owner, Variant value);
 }
 
 interface IDependencyPropertyDescriptorSpecialized(TOwner, T) : IDependencyPropertyDescriptor
@@ -64,7 +65,7 @@ class DependencyPropertyDescriptor(TOwner, T) : IDependencyPropertyDescriptorSpe
 
 	override @property bool hasSetter() { return this.mySetValue != null; }
 
-	override Variant getValue(IDependencyObject owner)
+	override Variant getValue(DependencyObject owner)
 	{
 		Variant value = this.myGetValue(cast(TOwner)owner);
 		return value;
@@ -75,7 +76,7 @@ class DependencyPropertyDescriptor(TOwner, T) : IDependencyPropertyDescriptorSpe
 		return this.myGetValue(owner);
 	}
 
-	override void setValue(IDependencyObject owner, Variant value)
+	override void setValue(DependencyObject owner, Variant value)
 	{
 		this.mySetValue(cast(TOwner)owner, value.get!T());
 	}
@@ -109,17 +110,33 @@ template isDependencyProperty(alias T)
 
 class ClassDescriptor
 {
-	private string myName;
-	private TypeInfo myType;
-	private ClassDescriptor myBase;
-	private IDependencyPropertyDescriptor[string] myDependencyPropertiesByName;
+	const string name;
+	const TypeInfo type;
+	const ClassDescriptor base;
+	const IDependencyPropertyDescriptor[string] dependencyPropertiesByName;
 
-	public this(string name, TypeInfo type, ClassDescriptor base, IDependencyPropertyDescriptor[string] dependencyPropertiesByName)
+	const(IDependencyPropertyDescriptor) getFlattenProperty(string name) immutable
 	{
-		myName = name;
-		myType = type;
-		myBase = base;
-		myDependencyPropertiesByName = dependencyPropertiesByName;
+		auto bag = rebindable!(const ClassDescriptor)(this);
+		while(bag !is null)
+		{
+			if(name in bag.dependencyPropertiesByName)
+			{
+				return bag.dependencyPropertiesByName[name];
+			}
+
+			bag = bag.base;
+		}
+
+		return null;
+	}
+
+	public this(string name, TypeInfo type, ClassDescriptor base, const IDependencyPropertyDescriptor[string] dependencyPropertiesByName)
+	{
+		this.name = name;
+		this.type = type;
+		this.base = base;
+		this.dependencyPropertiesByName = dependencyPropertiesByName;
 	}
 }
 
@@ -128,20 +145,11 @@ string nameof(alias Identifier)()
 	return __traits(identifier, Identifier);
 }
 
-interface IDependencyObject : INotifyPropertyChanged
-{
-}
-
-class DependencyObject(Element) : IDependencyObject
+class DependencyObject : INotifyPropertyChanged
 {
 	private Subject!PropertyChange subjectPropertyChanged = new Subject!PropertyChange();
 
 	private static ClassDescriptor[TypeInfo] classDescriptors;
-
-	static this()
-	{
-		registerProperties!Element();
-	}
 
 	protected bool setProperty(alias Identifier, TValue)(ref TValue val, TValue newValue)
 	{
@@ -155,7 +163,12 @@ class DependencyObject(Element) : IDependencyObject
 		return true;
 	}
 
-	protected static void registerProperties(TheClass)()
+	@property ClassDescriptor classDescriptor()
+	{
+		return classDescriptors[typeid(this)];
+	}
+
+	protected static void registerClass(TheClass)()
 	{
 		// Populate the descriptors for each dependency property
 		IDependencyPropertyDescriptor[string] properties;
@@ -173,7 +186,7 @@ class DependencyObject(Element) : IDependencyObject
 						// We get an invoker for the getter
 						PropertyType delegate(TheClass) getter = (instance) { return __traits(getMember, instance, memberName)(); };
 
-						// Now we will try for the setter, we try to compile to test if it has an available setter method
+						// Now we will go for the setter, we try to compile to test if it has an available setter method
 						void delegate(TheClass, PropertyType) setter = null;
 						static if(__traits(compiles, setter = (instance, value) { __traits(getMember, instance, memberName)(value); }))
 						{
