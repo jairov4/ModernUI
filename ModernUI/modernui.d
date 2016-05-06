@@ -13,7 +13,7 @@ interface INotifyPropertyChanged
 	@property IObservable!PropertyChange propertyChanged();
 }
 
-interface IDependencyPropertyPublicDescriptor
+interface IDependencyPropertyDescriptor
 {
 	@property TypeInfo valueType();
 
@@ -21,25 +21,21 @@ interface IDependencyPropertyPublicDescriptor
 
 	@property string name();
 
+	@property bool hasSetter();
+
 	Variant getValue(DependencyObject owner);
-}
 
-interface IDependencyPropertyPublicDescriptorSpecialized(TOwner, T) : IDependencyPropertyPublicDescriptor
-{
-	T getValueTyped(TOwner owner);
-}
-
-interface IDependencyPropertyPrivateDescriptor : IDependencyPropertyPublicDescriptor
-{
 	void setValue(DependencyObject owner, Variant value);
 }
 
-interface IDependencyPropertyPrivateDescriptorSpecialized(TOwner, T) : IDependencyPropertyPrivateDescriptor, IDependencyPropertyPublicDescriptorSpecialized!(TOwner, T)
+interface IDependencyPropertyDescriptorSpecialized(TOwner, T) : IDependencyPropertyDescriptor
 {
+	T getValueTyped(TOwner owner);
+
 	void setValueTyped(TOwner owner, T value);
 }
 
-class DependencyPropertyDescriptor(TOwner, T) : IDependencyPropertyPrivateDescriptorSpecialized!(TOwner, T)
+class DependencyPropertyDescriptor(TOwner, T) : IDependencyPropertyDescriptorSpecialized!(TOwner, T)
 {
 	private string myName;
 	alias Getter = T delegate(TOwner);
@@ -59,6 +55,8 @@ class DependencyPropertyDescriptor(TOwner, T) : IDependencyPropertyPrivateDescri
 	override @property TypeInfo ownerType() { return typeid(TOwner); }
 
 	override @property string name() { return this.myName; }
+
+	override @property bool hasSetter() { return this.mySetValue != null; }
 
 	override Variant getValue(DependencyObject owner)
 	{
@@ -110,9 +108,9 @@ class ClassDescriptor
 	private string myName;
 	private TypeInfo myType;
 	private ClassDescriptor myBase;
-	private IDependencyPropertyPrivateDescriptor[string] myDependencyPropertiesByName;
+	private IDependencyPropertyDescriptor[string] myDependencyPropertiesByName;
 
-	public this(string name, TypeInfo type, ClassDescriptor base, IDependencyPropertyPrivateDescriptor[string] dependencyPropertiesByName)
+	public this(string name, TypeInfo type, ClassDescriptor base, IDependencyPropertyDescriptor[string] dependencyPropertiesByName)
 	{
 		myName = name;
 		myType = type;
@@ -130,7 +128,7 @@ class DependencyObject : INotifyPropertyChanged
 	protected static void registerProperties(TheClass)()
 	{
 		// Populate the descriptors for each dependency property
-		IDependencyPropertyPrivateDescriptor[string] properties;
+		IDependencyPropertyDescriptor[string] properties;
 		foreach(memberName; __traits(allMembers, TheClass))
 		{
 			foreach(member; __traits(getOverloads, TheClass, memberName))
@@ -143,7 +141,7 @@ class DependencyObject : INotifyPropertyChanged
 					// We get an invoker for the getter
 					PropertyType delegate(TheClass) getter = (instance) { return __traits(getMember, instance, memberName)(); };
 
-					// Now we will try for the setter
+					// Now we will try for the setter, we try to compile to test if it has an available setter method
 					void delegate(TheClass, PropertyType) setter = null;
 					static if(__traits(compiles, setter = (instance, value) { __traits(getMember, instance, memberName)(value); }))
 					{
