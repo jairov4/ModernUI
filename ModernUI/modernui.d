@@ -93,8 +93,6 @@ class Dispatcher
 }
 
 enum DependencyProperty;
-enum Getter;
-enum Setter;
 
 alias helper(alias A) = A;
 
