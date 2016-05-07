@@ -409,8 +409,9 @@
   <filesToClean>*.obj;*.cmd;*.build;*.json;*.dep</filesToClean>
  </Config>
  <Folder name="ModernUI">
-  <File path="modernui.d" />
-  <File path="rx.d" />
-  <File path="winmain.d" />
+  <File path="source\app.d" />
+  <File path="source\modernui.d" />
+  <File path="source\promise.d" />
+  <File path="source\rx.d" />
  </Folder>
 </DProject>

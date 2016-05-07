@@ -20,60 +20,55 @@ interface INotifyPropertyChanged
 	@property IObservable!PropertyChange propertyChanged();
 }
 
-interface IDependencyPropertyDescriptor
-{
-	@property TypeInfo valueType();
-
-	@property TypeInfo ownerType();
-
-	@property string name();
-
-	@property bool hasSetter();
-
-	Variant getValue(DependencyObject owner);
-
-	void setValue(DependencyObject owner, Variant value);
-}
-
-interface IDependencyPropertyDescriptorSpecialized(TOwner, T) : IDependencyPropertyDescriptor
-{
-	T getValueTyped(TOwner owner);
-
-	void setValueTyped(TOwner owner, T value);
-}
-
-class DependencyPropertyDescriptor(TOwner, T) : IDependencyPropertyDescriptorSpecialized!(TOwner, T)
+abstract class DependencyPropertyDescriptor
 {
 	private string myName;
+	private TypeInfo myOwnerType;
+	private TypeInfo myValueType;
+	private bool myHasSetter;
+
+	this(string name, TypeInfo ownerType, TypeInfo valueType, bool hasSetter)
+	{
+		this.myName = name;
+		this.myOwnerType = ownerType;
+		this.myValueType = valueType;
+		this.myHasSetter = hasSetter;
+	}
+
+	@property TypeInfo valueType() { return this.myValueType; }
+
+	@property TypeInfo ownerType() { return this.myOwnerType; }
+
+	@property string name() { return this.myName; }
+
+	@property bool hasSetter() { return this.myHasSetter; }
+
+	abstract Variant getValue(DependencyObject owner) immutable;
+
+	abstract void setValue(DependencyObject owner, Variant value);
+}
+
+class DependencyPropertyDescriptorSpecialized(TOwner, T) : DependencyPropertyDescriptor
+{	
 	alias Getter = T delegate(TOwner);
 	alias Setter = void delegate(TOwner,T);
 	private Getter myGetValue;
 	private Setter mySetValue;
 
-	this(string name, Getter getter, Setter setter)
+	T getValueTyped(TOwner owner)
 	{
-		this.myName = name;
-		this.myGetValue = getter;
-		this.mySetValue = setter;
+		return this.myGetValue(owner);
 	}
 
-	override @property TypeInfo valueType() { return typeid(T); }
+	void setValueTyped(TOwner owner, T value)
+	{
+		this.mySetValue(owner, value);
+	}
 
-	override @property TypeInfo ownerType() { return typeid(TOwner); }
-
-	override @property string name() { return this.myName; }
-
-	override @property bool hasSetter() { return this.mySetValue != null; }
-
-	override Variant getValue(DependencyObject owner)
+	override Variant getValue(DependencyObject owner) immutable
 	{
 		Variant value = this.myGetValue(cast(TOwner)owner);
 		return value;
-	}
-
-	override T getValueTyped(TOwner owner)
-	{
-		return this.myGetValue(owner);
 	}
 
 	override void setValue(DependencyObject owner, Variant value)
@@ -81,9 +76,11 @@ class DependencyPropertyDescriptor(TOwner, T) : IDependencyPropertyDescriptorSpe
 		this.mySetValue(cast(TOwner)owner, value.get!T());
 	}
 
-	override void setValueTyped(TOwner owner, T value)
+	this(string name, Getter getter, Setter setter)
 	{
-		this.mySetValue(owner, value);
+		super(name, typeid(TOwner), typeid(T), setter !is null);
+		this.myGetValue = getter;
+		this.mySetValue = setter;
 	}
 }
 
@@ -113,9 +110,9 @@ class ClassDescriptor
 	const string name;
 	const TypeInfo type;
 	const ClassDescriptor base;
-	const IDependencyPropertyDescriptor[string] dependencyPropertiesByName;
+	const DependencyPropertyDescriptor[string] dependencyPropertiesByName;
 
-	const(IDependencyPropertyDescriptor) getFlattenProperty(string name) immutable
+	const(DependencyPropertyDescriptor) getFlattenProperty(string name) immutable
 	{
 		auto bag = rebindable!(const ClassDescriptor)(this);
 		while(bag !is null)
@@ -131,7 +128,7 @@ class ClassDescriptor
 		return null;
 	}
 
-	public this(string name, TypeInfo type, ClassDescriptor base, const IDependencyPropertyDescriptor[string] dependencyPropertiesByName)
+	public this(string name, TypeInfo type, ClassDescriptor base, const DependencyPropertyDescriptor[string] dependencyPropertiesByName)
 	{
 		this.name = name;
 		this.type = type;
@@ -171,7 +168,7 @@ class DependencyObject : INotifyPropertyChanged
 	protected static void registerClass(TheClass)()
 	{
 		// Populate the descriptors for each dependency property
-		IDependencyPropertyDescriptor[string] properties;
+		DependencyPropertyDescriptor[string] properties;
 		foreach(memberName; __traits(allMembers, TheClass))
 		{
 			static if(__traits(getProtection, __traits(getMember, TheClass, memberName)) == "public")
@@ -191,11 +188,10 @@ class DependencyObject : INotifyPropertyChanged
 						static if(__traits(compiles, setter = (instance, value) { __traits(getMember, instance, memberName)(value); }))
 						{
 							setter = (instance, value) { __traits(getMember, instance, memberName)(value); };
-							break;
 						}
 
 						// Build and add the new property descriptor
-						auto propDesc = new DependencyPropertyDescriptor!(TheClass, PropertyType)(memberName, getter, setter);
+						auto propDesc = new DependencyPropertyDescriptorSpecialized!(TheClass, PropertyType)(memberName, getter, setter);
 						properties[memberName] = propDesc;
 						break;
 					}
