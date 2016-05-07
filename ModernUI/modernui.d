@@ -101,9 +101,9 @@ class Dispatcher
 
 enum DependencyProperty;
 
-alias helper(alias A) = A;
+private alias helper(alias A) = A;
 
-template isDependencyProperty(alias T) 
+private template isDependencyProperty(alias T) 
 {
 	enum bool isDependencyProperty = isCallable!T && hasUDA!(T, DependencyProperty);
 }
