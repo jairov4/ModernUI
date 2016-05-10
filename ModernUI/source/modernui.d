@@ -17,7 +17,7 @@ class PropertyChange
 
 interface INotifyPropertyChanged
 {
-	@property IObservable!PropertyChange propertyChanged();
+	@property Observable!PropertyChange propertyChanged();
 }
 
 abstract class DependencyPropertyDescriptor
@@ -90,7 +90,7 @@ class Dispatcher
 	{
 	}
 
-	IObservable!Unit invokeAsync(void delegate() action)
+	Observable!Unit invokeAsync(void delegate() action)
 	{
 		return null;
 	}
@@ -144,7 +144,7 @@ string nameof(alias Identifier)()
 
 class DependencyObject : INotifyPropertyChanged
 {
-	private Subject!PropertyChange subjectPropertyChanged = new Subject!PropertyChange();
+	private auto subjectPropertyChanged = new Subject!PropertyChange();
 
 	private static ClassDescriptor[TypeInfo] classDescriptors;
 
@@ -156,7 +156,7 @@ class DependencyObject : INotifyPropertyChanged
 		}
 
 		val = newValue;
-		subjectPropertyChanged.OnNext(new PropertyChange(nameof!Identifier));
+		subjectPropertyChanged.next(new PropertyChange(nameof!Identifier));
 		return true;
 	}
 
@@ -169,7 +169,7 @@ class DependencyObject : INotifyPropertyChanged
 	{
 		// Populate the descriptors for each dependency property
 		DependencyPropertyDescriptor[string] properties;
-		foreach(memberName; __traits(allMembers, TheClass))
+		foreach(memberName; __traits(derivedMembers, TheClass))
 		{
 			static if(__traits(getProtection, __traits(getMember, TheClass, memberName)) == "public")
 			{
@@ -212,5 +212,5 @@ class DependencyObject : INotifyPropertyChanged
 		classDescriptors[typeid(TheClass)] = classDesc;
 	}
 
-	override @property IObservable!PropertyChange propertyChanged() { return subjectPropertyChanged; }
+	override @property Observable!PropertyChange propertyChanged() { return subjectPropertyChanged; }
 }

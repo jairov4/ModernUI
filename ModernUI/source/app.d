@@ -12,17 +12,26 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
 		return -1;
 	}
 
-    try
-    {
-        auto result = myWinMain(hInstance, hPrevInstance, lpCmdLine, nCmdShow);
-        Runtime.terminate();
+	try
+	{
+		version(unittest)
+		{
+			if(!runModuleUnitTests())
+			{
+				Runtime.terminate();
+				return -1;
+			}
+		}
+
+		auto result = myWinMain(hInstance, hPrevInstance, lpCmdLine, nCmdShow);
+		Runtime.terminate();
 		return result;
-    }
-    catch (Throwable o) // catch any uncaught exceptions
-    {
-        MessageBoxA(null, cast(char *)o.toString(), "Error", MB_OK | MB_ICONEXCLAMATION);
+	}
+	catch (Throwable o) // catch any uncaught exceptions
+	{
+		MessageBoxA(null, cast(char *)o.toString(), "Error", MB_OK | MB_ICONEXCLAMATION);
 		return -1;
-    }
+	}
 }
 
 class Element : DependencyObject
@@ -36,8 +45,8 @@ class Element : DependencyObject
 
 int myWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
-    auto element = new Element;
+	auto element = new Element;
 	element.width = 34;
 
-    return 0;
+	return 0;
 }
