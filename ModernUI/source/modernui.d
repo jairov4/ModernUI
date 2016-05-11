@@ -171,7 +171,8 @@ class DependencyObject : INotifyPropertyChanged
 		DependencyPropertyDescriptor[string] properties;
 		foreach(memberName; __traits(derivedMembers, TheClass))
 		{
-			static if(__traits(getProtection, __traits(getMember, TheClass, memberName)) == "public")
+			// Skip constructors and process just public members
+			static if(memberName != "this" && __traits(getProtection, __traits(getMember, TheClass, memberName)) == "public")
 			{
 				foreach(member; __traits(getOverloads, TheClass, memberName))
 				{
@@ -213,4 +214,36 @@ class DependencyObject : INotifyPropertyChanged
 	}
 
 	override @property Observable!PropertyChange propertyChanged() { return subjectPropertyChanged; }
+}
+
+unittest
+{
+	// Sample of basic use case
+	final class Element : DependencyObject
+	{
+		// Define your dependency property
+		private double myWidth;
+		@property @DependencyProperty double width() {return myWidth;}
+		@property void width(double value) { this.setProperty!width(this.myWidth, value); }
+
+		// Initialize the internal reflection data structures
+		static this() { registerClass!(typeof(this))(); }
+	}
+
+	auto element = new Element;
+	element.width = 34;
+	string propertyWhatChanged = null;
+
+	// Subscribe a simple change listener
+	element.propertyChanged.then!PropertyChange((v) {
+		propertyWhatChanged = v.name;
+	});
+
+	import std.algorithm;
+	assert(cmp(propertyWhatChanged, "width") != 0);
+	assert(element.width == 34);
+	element.width = 15;
+
+	assert(cmp(propertyWhatChanged, "width") == 0);
+	assert(element.width == 15);
 }

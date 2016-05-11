@@ -34,19 +34,7 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
 	}
 }
 
-class Element : DependencyObject
-{
-	private double myWidth;
-	@property @DependencyProperty double width() {return myWidth;}
-	@property void width(double value) { this.setProperty!width(this.myWidth, value); }
-
-	static this() { registerClass!Element(); }
-}
-
 int myWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
-	auto element = new Element;
-	element.width = 34;
-
 	return 0;
 }
