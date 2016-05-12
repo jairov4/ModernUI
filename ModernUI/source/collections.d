@@ -23,7 +23,7 @@ class HashSet(T)
 		}
 	}
 
-	@property size_t length() 
+	@property size_t length() const
 	{ 
 		return backingField.length;
 	}
@@ -43,12 +43,12 @@ class HashSet(T)
 		backingField.clear;
 	}
 
-	bool contains(T val)
+	bool contains(T val) const
 	{
 		return (val in backingField) !is null;
 	}
 
-	T[] values()
+	const(T[]) values() const
 	{
 		auto keys = backingField.keys;
 		return keys;
