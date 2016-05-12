@@ -84,19 +84,12 @@ class DependencyPropertyDescriptorSpecialized(TOwner, T) : DependencyPropertyDes
 	}
 }
 
-class Dispatcher
-{
-	void invoke(void delegate() action)
-	{
-	}
-
-	Observable!Unit invokeAsync(void delegate() action)
-	{
-		return null;
-	}
-}
-
 enum DependencyProperty;
+
+template nameof(alias identifier) 
+{
+	string nameof = __traits(identifier, identifier);
+}
 
 private alias helper(alias A) = A;
 
@@ -137,12 +130,7 @@ class ClassDescriptor
 	}
 }
 
-template nameof(alias identifier) 
-{
-	string nameof = __traits(identifier, identifier);
-}
-
-class DependencyObject : INotifyPropertyChanged
+abstract class DependencyObject : INotifyPropertyChanged
 {
 	private auto subjectPropertyChanged = new Subject!PropertyChange();
 
