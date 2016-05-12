@@ -1,5 +1,7 @@
 module Rx;
 
+import collections;
+
 enum Unit { Unit };
 
 alias Action(T) = void delegate(T);
@@ -17,6 +19,8 @@ final class Subscription
 
 	void release()
 	{
+		if(action == null) return;
+
 		// executes the action
 		this.action();
 
@@ -27,9 +31,9 @@ final class Subscription
 
 final class Observer(T)
 {
-	Action!T onNextCallback;
-	Delegate onCompletedCallback;
-	Action!Exception onErrorCallback;
+	private Action!T onNextCallback;
+	private Delegate onCompletedCallback;
+	private Action!Exception onErrorCallback;
 
 	this(Action!T nextCallback)
 	{
@@ -101,18 +105,6 @@ abstract class Observable(T)
 	}
 }
 
-unittest
-{
-	// Observable
-	auto test1 = new Subject!int;
-	auto test1var = 10;
-	test1.then!int((v) { test1var = v; });
-	assert(test1var == 10);
-
-	test1.next(15);
-	assert(test1var == 15);
-}
-
 final class Subject(T) : Observable!T
 {
 	void next(T value)
@@ -125,51 +117,6 @@ final class Subject(T) : Observable!T
 
 	void complete()
 	{
-		foreach(observer ; observers.keys)
-		{
-			observer.onCompleted();
-		}
-
-		observers.clear();
-	}
-
-	void error(Exception e)
-	{
-		foreach(observer ; observers.keys)
-		{
-			observer.onError(e);
-		}
-	}
-
-	override Subscription subscribe(Observer!T observer)
-	{
-		if(isCompleted)
-		{
-			return new Subscription({});
-		}
-
-		auto subscription = new Subscription({
-			this.unsubscribe(observer);
-		});
-
-		observers[observer] = subscription;
-		return subscription;
-	}
-}
-
-final class Promise(T) : Observable!T
-{
-	private T myResolvedValue;
-
-	@property T value() { return myResolvedValue; }
-
-	void resolve(T value)
-	{
-		foreach(observer ; observers.keys)
-		{
-			observer.onNext(value);
-		}
-
 		foreach(observer ; observers.keys)
 		{
 			observer.onCompleted();
@@ -191,6 +138,59 @@ final class Promise(T) : Observable!T
 	{
 		if(isCompleted)
 		{
+			return new Subscription(null);
+		}
+
+		auto subscription = new Subscription({
+			this.unsubscribe(observer);
+		});
+
+		observers[observer] = subscription;
+		return subscription;
+	}
+}
+
+unittest
+{
+	// Observable
+	auto test1 = new Subject!int;
+	auto test1var = 10;
+	test1.then!int((v) { 
+		test1var = v; 
+	},
+	(e)
+	{
+		test1var = -1;
+	},
+	{
+		test1var = -100;
+	});
+	assert(test1var == 10);
+
+	test1.next(15);
+	assert(test1var == 15);
+
+	test1.next(32);
+	assert(test1var == 32);
+	
+	assert(!test1.isCompleted);
+	test1.complete();
+	assert(test1var == -100);
+	assert(test1.isCompleted);
+}
+
+// A Promise is an object representing a observable value that will be resolved in the future.
+// As an observable it will yield a single value and switch to completed state.
+abstract class Promise(T) : Observable!T
+{
+	private T myResolvedValue;
+
+	@property T value() { return myResolvedValue; }
+
+	override Subscription subscribe(Observer!T observer)
+	{
+		if(isCompleted)
+		{
 			observer.onNext(value);
 			return new Subscription({});
 		}
@@ -204,29 +204,95 @@ final class Promise(T) : Observable!T
 	}
 }
 
+final class Deferred(T) : Promise!T
+{
+	void resolve(T value)
+	{
+		myIsCompleted = true;
+		foreach(observer ; observers.keys)
+		{
+			observer.onNext(value);
+		}
+
+		foreach(observer ; observers.keys)
+		{
+			observer.onCompleted();
+		}
+
+		observers.clear();
+	}
+
+	void error(Exception e)
+	{
+		myIsCompleted = true;
+		foreach(observer ; observers.keys)
+		{
+			observer.onError(e);
+		}
+
+		foreach(observer ; observers.keys)
+		{
+			observer.onCompleted();
+		}
+
+		observers.clear();
+	}
+}
+
 Observable!T then(T)(Observable!T self, Action!T action)
 {
 	self.subscribe(new Observer!T(action));
 	return self;
 }
 
-Observable!K then(T,K)(Observable!T self, Func!(T,Promise!K) fn)
+Observable!T then(T)(Observable!T self, Action!T action, Action!Exception error)
 {
-	auto promise = new Subject!K;
-	self.then!T((value) {
-		auto anotherObservable = fn(value);
-		anotherObservable.then!K(newValue => promise.next(newValue)); 
-	});
+	self.subscribe(new Observer!T(action, error));
+}
 
-	return promise;
+void then(T)(Observable!T self, Action!T action, Action!Exception error, Delegate complete)
+{
+	self.subscribe(new Observer!T(action, error, complete));
+}
+
+unittest
+{
+	// Promise
+	auto test1 = new Deferred!int;
+	auto test1var = 10;
+	test1.then!int((v) { 
+		test1var = v; 
+	});
+	assert(test1var == 10);
+	assert(!test1.isCompleted);
+
+	test1.resolve(15);
+	assert(test1var == 15);
+	assert(test1.isCompleted);
 }
 
 Observable!T merge(T)(Observable!T[] inputs ...)
 {
 	auto output = new Subject!T;
+
+	// Intialize a copy of the observables
+	auto alive = inputs.length;
 	foreach(input ; inputs)
 	{
-		input.then((v) { output.next(v); }, (e) { output.error(e); }, { output.complete(); });
+		// We subscribe and forward next() and error() events
+		input.then!T((v) {
+			output.next(v); 
+		}, 
+		(e) { 
+			output.error(e); 
+		}, 
+		{
+			// On complete(), we test if this is the last observable alive			
+			if(alive-- == 0)
+			{
+				output.complete();
+			}
+		});
 	}
 
 	return output;
@@ -234,21 +300,28 @@ Observable!T merge(T)(Observable!T[] inputs ...)
 
 unittest
 {
-	// Promise
-	auto test2Promise1 = new Promise!int;
-	auto test2Promise2 = new Promise!int();
-	auto test2Promise3 = test2Promise1.then!(int,int)(_ => test2Promise2);
-	assert(!test2Promise1.isCompleted);
-	assert(!test2Promise2.isCompleted);
-	assert(!test2Promise3.isCompleted);
-	
-	test2Promise1.resolve(10);
-	assert(test2Promise1.isCompleted);
-	assert(!test2Promise2.isCompleted);
-	assert(!test2Promise3.isCompleted);
-	
-	test2Promise2.resolve(15);
-	assert(test2Promise1.isCompleted);
-	assert(test2Promise2.isCompleted);
-	assert(test2Promise3.isCompleted);
+	auto obs1 = new Subject!int;
+	auto obs2 = new Subject!int;
+	auto merged = merge(obs1, obs2);
+
+	auto received = 0;
+	merged.then!int((v) {
+		received = v;
+	});
+
+	assert(received == 0);
+
+	obs1.next(10);
+	assert(received == 10);
+	assert(!merged.isCompleted);
+
+	obs2.next(20);
+	assert(received == 20);
+	assert(!merged.isCompleted);
+
+	obs2.complete();
+	assert(!merged.isCompleted);
+
+	obs1.complete();
+	assert(merged.isCompleted);
 }

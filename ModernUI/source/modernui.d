@@ -43,7 +43,7 @@ abstract class DependencyPropertyDescriptor
 
 	@property bool hasSetter() { return this.myHasSetter; }
 
-	abstract Variant getValue(DependencyObject owner) immutable;
+	abstract Variant getValue(DependencyObject owner) const;
 
 	abstract void setValue(DependencyObject owner, Variant value);
 }
@@ -55,7 +55,7 @@ class DependencyPropertyDescriptorSpecialized(TOwner, T) : DependencyPropertyDes
 	private Getter myGetValue;
 	private Setter mySetValue;
 
-	T getValueTyped(TOwner owner)
+	T getValueTyped(TOwner owner) const
 	{
 		return this.myGetValue(owner);
 	}
@@ -65,15 +65,15 @@ class DependencyPropertyDescriptorSpecialized(TOwner, T) : DependencyPropertyDes
 		this.mySetValue(owner, value);
 	}
 
-	override Variant getValue(DependencyObject owner) immutable
+	override Variant getValue(DependencyObject owner) const
 	{
-		Variant value = this.myGetValue(cast(TOwner)owner);
+		Variant value = this.getValueTyped(cast(TOwner)owner);
 		return value;
 	}
 
 	override void setValue(DependencyObject owner, Variant value)
 	{
-		this.mySetValue(cast(TOwner)owner, value.get!T());
+		this.setValueTyped(cast(TOwner)owner, value.get!T());
 	}
 
 	this(string name, Getter getter, Setter setter)
@@ -137,9 +137,9 @@ class ClassDescriptor
 	}
 }
 
-string nameof(alias Identifier)()
+template nameof(alias identifier) 
 {
-	return __traits(identifier, Identifier);
+	string nameof = __traits(identifier, identifier);
 }
 
 class DependencyObject : INotifyPropertyChanged
@@ -216,7 +216,7 @@ class DependencyObject : INotifyPropertyChanged
 	override @property Observable!PropertyChange propertyChanged() { return subjectPropertyChanged; }
 }
 
-unittest
+version(unittest)
 {
 	// Sample of basic use case
 	final class Element : DependencyObject
@@ -230,20 +230,23 @@ unittest
 		static this() { registerClass!(typeof(this))(); }
 	}
 
-	auto element = new Element;
-	element.width = 34;
-	string propertyWhatChanged = null;
+	void test_dependency_property()
+	{
+		auto element = new Element;
+		element.width = 34;
+		string propertyWhatChanged = null;
 
-	// Subscribe a simple change listener
-	element.propertyChanged.then!PropertyChange((v) {
-		propertyWhatChanged = v.name;
-	});
+		// Subscribe a simple change listener
+		element.propertyChanged.then!PropertyChange((v) {
+			propertyWhatChanged = v.name;
+		});
 
-	import std.algorithm;
-	assert(cmp(propertyWhatChanged, "width") != 0);
-	assert(element.width == 34);
-	element.width = 15;
+		import std.algorithm;
+		assert(propertyWhatChanged != nameof!(Element.width));
+		assert(element.width == 34);
+		element.width = 15;
 
-	assert(cmp(propertyWhatChanged, "width") == 0);
-	assert(element.width == 15);
+		assert(propertyWhatChanged == nameof!(Element.width));
+		assert(element.width == 15);
+	}
 }

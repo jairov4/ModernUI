@@ -614,6 +614,7 @@
  </Config>
  <Folder name="ModernUI">
   <File path="source\app.d" />
+  <File path="source\collections.d" />
   <File path="source\modernui.d" />
   <File path="source\rx.d" />
  </Folder>
