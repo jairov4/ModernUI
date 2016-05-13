@@ -1,9 +1,10 @@
-module ModernUI;
+module modernui.core;
 
 import std.traits;
 import std.variant;
 import std.typecons;
-import Rx;
+
+import modernui.rx;
 
 class PropertyChange
 {

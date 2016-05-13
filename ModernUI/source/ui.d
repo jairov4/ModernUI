@@ -1,6 +1,6 @@
 module modernui.ui;
 
-import modernui;
+import modernui.core;
 
 abstract class RenderContext
 {
@@ -28,7 +28,11 @@ abstract class Visual : DependencyObject
 {
 	static this() { registerClass!(typeof(this)); }
 
-	protected abstract Visual visualParent;
+	private Visual myVisualParent;
+	@property Visual visualParent() { return myVisualParent; }
+	private @property void visualParent(Visual value) { this.setProperty!visualParent(this.myVisualParent, value); }
+
+	private IList!Visual myChildren;
 
 	@property Size desiredSize();
 

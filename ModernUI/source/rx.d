@@ -1,6 +1,6 @@
-module Rx;
+module modernui.rx;
 
-import collections;
+import modernui.collections;
 
 enum Unit { Unit };
 
