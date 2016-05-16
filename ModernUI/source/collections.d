@@ -1,5 +1,7 @@
 module modernui.collections;
 
+import std.range;
+
 private struct None
 {
 	void[0] dummy;
@@ -45,12 +47,15 @@ interface IReactiveList(T) : IReactiveCollection!T
 	@property Observable!(const ListChange) listChanged();
 }
 
-interface ICollection(T)
+interface IIterable(T)
 {
-	// TODO: Replace by add Range
-	void add(T[] val);
-	// TODO: Replace by remove range
-	void remove(T[] val);
+	InputRange!T rangeof() const;
+}
+
+interface ICollection(T) : IIterable!T
+{
+	void add(const T[] val);
+	void remove(const T[] val);
 	void clear();
 
 	@property size_t length() const;
@@ -59,24 +64,38 @@ interface ICollection(T)
 
 interface IList(T) : ICollection!T
 {
-	T get(size_t index) const;
+	T opIndex(size_t index) const;
 	void set(size_t index, T value);
 }
 
 interface IDictionary(TKey, TValue)
 {
-	// TODO: Replace by add Range
-	bool add(Tuple!(TKey,TValue)[] items);
-	// TODO: Replace by remove range
-	void remove(TKey[] key);
+	bool add(const Tuple!(TKey,TValue)[] items);
+	void remove(const TKey[] key);
 	void clear();
 
-	TValue get(TKey key) const;
+	TValue opIndex(TKey key) const;
 	@property const(TKey[]) keys() const;
 	@property const(TValue[]) values() const;
 
 	@property size_t length() const;
 	void contains(TKey key) const;
+}
+
+// Dictionary Extensions
+void addSingle(TKey, TValue, TDictionary : IDictionary!(TKey, TValue))(TDictionary dictionary, TKey key, TValue value)
+{
+	dictionary.add([ Tuple!(TKey, TValue)(key, value) ]);
+}
+
+void addSingle(T, TCollection : ICollection!T)(TCollection collection, T value)
+{
+	collection.add([ value ]);
+}
+
+void remove(TKey, TValue, TDictionary : IDictionary!(TKey, TValue))(TDictionary dictionary, TKey key)
+{
+	dictionary.remove([ key ]);
 }
 
 class HashSet(T) : ICollection!T
@@ -89,25 +108,28 @@ class HashSet(T) : ICollection!T
 
 	this(T[] items)
 	{
-		foreach(item; items)
-		{
-			add(item);
-		}
+		add(item);
 	}
 
 	@property size_t length() const
 	{ 
 		return backingField.length;
 	}
-
-	void add(T val)
+	
+	void add(T[] val)
 	{
-		backingField[val] = None.val;
+		foreach(v; val)
+		{
+			backingField[v] = None.val;
+		}
 	}
 
-	void remove(T val)
+	void remove(T[] val)
 	{
-		backingField.remove(val);
+		foreach(v; val)
+		{
+			backingField.remove(v);
+		}
 	}
 
 	void clear()
@@ -125,4 +147,10 @@ class HashSet(T) : ICollection!T
 		auto keys = backingField.keys;
 		return keys;
 	}
+}
+
+unittest
+{
+	auto set = new HashSet!int;
+	set.add(5);
 }

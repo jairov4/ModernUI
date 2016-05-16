@@ -1,6 +1,7 @@
 module modernui.ui;
 
 import modernui.core;
+import modernui.collections;
 
 abstract class RenderContext
 {

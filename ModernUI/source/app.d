@@ -2,7 +2,7 @@ module winmain;
 
 import core.runtime;
 import core.sys.windows.windows;
-import ModernUI;
+import modernui.core;
 
 extern (Windows)
 int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
