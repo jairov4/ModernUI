@@ -54,8 +54,8 @@ interface IIterable(T)
 
 interface ICollection(T) : IIterable!T
 {
-	void add(const T[] val);
-	void remove(const T[] val);
+	void addRange(const T[] val);
+	void removeRange(const T[] val);
 	void clear();
 
 	@property size_t length() const;
@@ -70,8 +70,8 @@ interface IList(T) : ICollection!T
 
 interface IDictionary(TKey, TValue)
 {
-	bool add(const Tuple!(TKey,TValue)[] items);
-	void remove(const TKey[] key);
+	bool addRange(const Tuple!(TKey,TValue)[] items);
+	void removeRange(const TKey[] key);
 	void clear();
 
 	TValue opIndex(TKey key) const;
@@ -83,19 +83,24 @@ interface IDictionary(TKey, TValue)
 }
 
 // Dictionary Extensions
-void addSingle(TKey, TValue, TDictionary : IDictionary!(TKey, TValue))(TDictionary dictionary, TKey key, TValue value)
+void add(TKey, TValue, TDictionary : IDictionary!(TKey, TValue))(TDictionary dictionary, TKey key, TValue value)
 {
-	dictionary.add([ Tuple!(TKey, TValue)(key, value) ]);
+	dictionary.addRange([ Tuple!(TKey, TValue)(key, value) ]);
 }
 
-void addSingle(T, TCollection : ICollection!T)(TCollection collection, T value)
+void add(T, TCollection : ICollection!T)(TCollection collection, T value)
 {
-	collection.add([ value ]);
+	collection.addRange([ value ]);
 }
 
 void remove(TKey, TValue, TDictionary : IDictionary!(TKey, TValue))(TDictionary dictionary, TKey key)
 {
-	dictionary.remove([ key ]);
+	dictionary.removeRange([ key ]);
+}
+
+void remove(T, TCollection : ICollection!T)(TCollection collection, T value)
+{
+	collection.removeRange([ value ]);
 }
 
 class HashSet(T) : ICollection!T
@@ -108,7 +113,7 @@ class HashSet(T) : ICollection!T
 
 	this(T[] items)
 	{
-		add(item);
+		addRange(items);
 	}
 
 	@property size_t length() const
@@ -116,7 +121,7 @@ class HashSet(T) : ICollection!T
 		return backingField.length;
 	}
 	
-	void add(T[] val)
+	void addRange(T[] val)
 	{
 		foreach(v; val)
 		{
@@ -124,7 +129,7 @@ class HashSet(T) : ICollection!T
 		}
 	}
 
-	void remove(T[] val)
+	void removeRange(T[] val)
 	{
 		foreach(v; val)
 		{
@@ -146,6 +151,10 @@ class HashSet(T) : ICollection!T
 	{
 		auto keys = backingField.keys;
 		return keys;
+	}
+
+	InputRange!T rangeof() const
+	{
 	}
 }
 

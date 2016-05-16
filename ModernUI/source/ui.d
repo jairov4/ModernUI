@@ -35,12 +35,24 @@ abstract class Visual : DependencyObject
 
 	private IList!Visual myChildren;
 
-	@property Size desiredSize();
+	private Size myDesiredSize;
+	@property Size desiredSize() { return this.myDesiredSize; }
 
-	@property double actualWidth();
-	@property double actualHeight();
+	private double  myActualWidth;
+	@property double actualWidth() { return this.myActualWidth; }
 
-	protected void invalidateLayout();
+	private double myActualHeight;
+	@property double actualHeight() { return this.myActualHeight; }
+
+	bool myIsMeasuremntValid;
+	@property bool isMeasurementValid() { return this.myIsMeasuremntValid; }
+	@property bool isArrangementValid() { return this.myIsArrangementValid; }
+
+	protected void invalidateLayout()
+	{
+		this.setProperty!isMeasurementValid(this.myIsMeasurementValid, true);
+		this.setProperty!isArrangementValid(this.myIsArrangementValid, true);
+	}
 
 	protected abstract Size measure(Size measure);
 
