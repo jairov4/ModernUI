@@ -616,7 +616,7 @@
   <File path="source\app.d" />
   <File path="source\collections.d" />
   <File path="source\core.d" />
-  <File path="source\ui.d" />
   <File path="source\rx.d" />
+  <File path="source\ui.d" />
  </Folder>
 </DProject>

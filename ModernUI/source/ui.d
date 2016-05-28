@@ -33,7 +33,7 @@ abstract class Visual : DependencyObject
 	@property Visual visualParent() { return myVisualParent; }
 	private @property void visualParent(Visual value) { this.setProperty!visualParent(this.myVisualParent, value); }
 
-	private IList!Visual myChildren;
+	private ReactiveList!Visual myChildren;
 
 	private Size myDesiredSize;
 	@property Size desiredSize() { return this.myDesiredSize; }
@@ -44,8 +44,10 @@ abstract class Visual : DependencyObject
 	private double myActualHeight;
 	@property double actualHeight() { return this.myActualHeight; }
 
-	bool myIsMeasuremntValid;
-	@property bool isMeasurementValid() { return this.myIsMeasuremntValid; }
+	bool myIsMeasurementValid;
+	@property bool isMeasurementValid() { return this.myIsMeasurementValid; }
+
+	bool myIsArrangementValid;
 	@property bool isArrangementValid() { return this.myIsArrangementValid; }
 
 	protected void invalidateLayout()

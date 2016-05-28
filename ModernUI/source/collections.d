@@ -1,6 +1,9 @@
 module modernui.collections;
 
 import std.range;
+import std.container.array;
+import std.traits;
+import modernui.rx;
 
 private struct None
 {
@@ -20,18 +23,12 @@ struct CollectionItemsRemoved(T)
 	T[] items;
 }
 
-interface IReactiveCollection(T) : ICollection!T, INotifyPropertyChanged
-{
-	@property Observable!(const T[]) collectionItemsAdded();
-	@property Observable!(const CollectionItemsRemoved!T) collectionItemsRemoved();
-}
-
 enum ListChangeType
 {
 	RemoveOrAdd, Reset
 }
 
-struct ListChange(T)
+struct ReactiveListChange(T)
 {
 	ListChangeType type;
 
@@ -41,7 +38,7 @@ struct ListChange(T)
 	int newItemsFirstIndex;
 	T[] newItems;
 }
-
+/*
 interface IReactiveList(T) : IReactiveCollection!T
 {
 	@property Observable!(const ListChange) listChanged();
@@ -70,43 +67,139 @@ interface IList(T) : ICollection!T
 
 interface IDictionary(TKey, TValue)
 {
-	bool addRange(const Tuple!(TKey,TValue)[] items);
-	void removeRange(const TKey[] key);
+	bool addRange(const InputRange!(Tuple!(TKey,TValue)) items);
+	void removeRange(const InputRange!(TKey) key);
 	void clear();
 
 	TValue opIndex(TKey key) const;
-	@property const(TKey[]) keys() const;
-	@property const(TValue[]) values() const;
+	@property const(ICollection!TKey) keys() const;
+	@property const(ICollection!TValue) values() const;
 
 	@property size_t length() const;
 	void contains(TKey key) const;
 }
+*/
 
 // Dictionary Extensions
-void add(TKey, TValue, TDictionary : IDictionary!(TKey, TValue))(TDictionary dictionary, TKey key, TValue value)
+void add(TKey, TValue, TDictionary)(TDictionary dictionary, TKey key, TValue value)
 {
 	dictionary.addRange([ Tuple!(TKey, TValue)(key, value) ]);
 }
 
-void add(T, TCollection : ICollection!T)(TCollection collection, T value)
+void add(T, TCollection)(TCollection collection, T value)
 {
 	collection.addRange([ value ]);
 }
 
-void remove(TKey, TValue, TDictionary : IDictionary!(TKey, TValue))(TDictionary dictionary, TKey key)
+void remove(TKey, TValue, TDictionary)(TDictionary dictionary, TKey key)
 {
 	dictionary.removeRange([ key ]);
 }
 
-void remove(T, TCollection : ICollection!T)(TCollection collection, T value)
+void remove(T, TCollection)(TCollection collection, T value)
 {
 	collection.removeRange([ value ]);
 }
 
+class ReactiveList(T)
+{
+	private Array!T impl;
+	private Subject!(const T[]) collectionItemsAddedSubject;
+
+	@property Observable!(const T[]) collectionItemsAdded() { return collectionItemsAddedSubject; }
+
+	this()
+	{
+		impl = Array!T();
+		collectionItemsAddedSubject = new Subject!(const T[]);
+	}
+
+	this(U)(U[] values...) if (isImplicitlyConvertible!(U, T))
+	{
+		impl = Array!T(values);
+		collectionItemsAddedSubject = new Subject!(const T[]);
+	}
+
+	this(Stuff)(Stuff stuff) if (isInputRange!Stuff && isImplicitlyConvertible!(ElementType!Stuff, T) && !is(Stuff == T[]))
+	{
+		impl = Array!(stuff);
+		collectionItemsAddedSubject = new Subject!(const T[]);
+	}
+
+	alias Range = Array!(T).Range;
+	alias ConstRange = Array!(T).ConstRange;
+	alias ImmutableRange = Array!(T).ImmutableRange;
+
+	struct ListChange 
+	{
+		ListChangeType type;
+		size_t newItemsFirstIndex;
+		size_t oldItemsFirstIndex;
+	}
+
+	void addRange(Stuff)(Stuff stuff) if (isInputRange!Stuff && isImplicitlyConvertible!(ElementType!Stuff, T))
+	{
+		auto i = impl.length;
+		impl.insertBack(stuff);
+		auto listChange = ListChange.init;
+		listChange.type = ListChangeType.RemoveOrAdd;
+		listChange.newItemsFirstIndex = i;
+		listChange.oldItemsFirstIndex = -1;
+		collectionItemsAddedSubject.next(listChange);
+	}
+
+	void removeRange(Stuff)(Stuff val) if (isImplicitlyConvertible!(Stuff, T) || isInputRange!Stuff && isImplicitlyConvertible!(ElementType!Stuff, T))
+	{
+		foreach(v; val)
+		{
+			bool found = false;
+			for(size_t i = 0; i<impl.length; i++)
+			{
+				if(impl[i] == v) 
+				{
+					impl.linearRemove(impl[i]);
+					found = true;
+					break;
+				}
+			}
+			if(!found) throw new Error("Item not found");
+		}
+	}
+
+	void clear() { impl.clear(); }
+
+	@property size_t length() const { return impl.length; }
+
+	bool contains(T val) const 
+	{
+		foreach(v; impl)
+		{
+			if(v == val) return true;
+		}
+		return false;
+	}
+
+	inout(T) opIndex(size_t index) inout
+	{
+		return impl[index];
+	}
+
+	void set(size_t index, T value) { impl[index] = value; }
+
+	@property ConstRange rangeof() const { return impl[]; }
+}
+
+unittest
+{
+	auto list = new ReactiveList!int;
+	assert(list.length == 0);
+	list.addRange([5]);
+	assert(list.length == 1);
+}
+
+/*
 class HashSet(T) : ICollection!T
 {
-	private None[T] backingField;
-
 	this()
 	{
 	}
@@ -163,3 +256,4 @@ unittest
 	auto set = new HashSet!int;
 	set.add(5);
 }
+*/
