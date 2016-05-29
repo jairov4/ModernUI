@@ -88,6 +88,7 @@ abstract class Observable(T)
 	private bool myIsCompleted;
 
 	@property bool isCompleted() { return myIsCompleted; }
+	@property bool hasSubscribers() { return observers.length != 0; }
 
 	abstract Subscription subscribe(Observer!T observer);
 
@@ -324,4 +325,11 @@ unittest
 
 	obs1.complete();
 	assert(merged.isCompleted);
+}
+
+struct None
+{
+	void[0] dummy;
+
+	immutable static None val = {};
 }
