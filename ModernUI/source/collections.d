@@ -5,132 +5,27 @@ import std.container.array;
 import std.traits;
 import modernui.rx;
 
-enum ListChangeType
-{
-	AddOrReplace, Remove, Reset
-}
-
-struct ReactiveListChange(T)
-{
-	ListChangeType type;
-
-	int oldItemsFirstIndex;
-	T[] oldItems;
-
-	int newItemsFirstIndex;
-	T[] newItems;
-}
-
-class ReactiveList(T)
+class ReadOnlyList(T)
 {
 	private Array!T impl;
-
-	this()
-	{
-		impl = Array!T();
-		collectionChangedSubject = new Subject!(const ListChange);
-	}
-
-	this(U)(U[] values...) if (isImplicitlyConvertible!(U, T))
-	{
-		impl = Array!T(values);
-		collectionChangedSubject = new Subject!(const ListChange);
-	}
-
-	this(Stuff)(Stuff stuff) if (isInputRange!Stuff && isImplicitlyConvertible!(ElementType!Stuff, T) && !is(Stuff == T[]))
-	{
-		impl = Array!(stuff);
-		collectionChangedSubject = new Subject!(const ListChange);
-	}
 
 	alias Range = Array!(T).Range;
 	alias ConstRange = Array!(T).ConstRange;
 	alias ImmutableRange = Array!(T).ImmutableRange;
 
-	alias ItemsAddedRange = Range;
-
-	struct ListChange 
+	this()
 	{
-		ListChangeType type;
-		size_t newItemsFirstIndex;
-		ItemsAddedRange newItems;
-		T[] oldItems;
+		impl = Array!T();
 	}
 
-	private Subject!(const ListChange) collectionChangedSubject;
-	@property Observable!(const ListChange) collectionChanged() { return collectionChangedSubject; }
-
-	void addRange(Stuff)(Stuff stuff) if (isInputRange!Stuff && isImplicitlyConvertible!(ElementType!Stuff, T))
+	this(U)(U[] values...) if (isImplicitlyConvertible!(U, T))
 	{
-		auto i = impl.length;
-		impl.insertBack(stuff);
-		auto listChange = ListChange.init;
-		listChange.type = ListChangeType.AddOrReplace;
-		listChange.newItemsFirstIndex = i;
-		listChange.newItems = impl[i..$];
-		collectionChangedSubject.next(listChange);
+		impl = Array!T(values);
 	}
 
-	void add(T item)
+	this(Stuff)(Stuff stuff) if (isInputRange!Stuff && isImplicitlyConvertible!(ElementType!Stuff, T) && !is(Stuff == T[]))
 	{
-		auto i = impl.length;
-		impl.insertBack(item);
-		auto listChange = ListChange.init;
-		listChange.type = ListChangeType.AddOrReplace;
-		listChange.newItemsFirstIndex = i;
-		listChange.newItems = impl[i..$];
-		collectionChangedSubject.next(listChange);
-	}
-
-	void removeRange(Stuff)(Stuff val) if (isImplicitlyConvertible!(Stuff, T) || isInputRange!Stuff && isImplicitlyConvertible!(ElementType!Stuff, T))
-	{
-		static if(is(Stuff == T[]))
-		{
-			T[] oldItems = val;;
-		}
-		else
-		{
-			T[] oldItems;
-		}
-
-		foreach(v; val)
-		{
-			bool found = false;
-			for(size_t i = 0; i<impl.length; i++)
-			{
-				if(impl[i] == v) 
-				{
-					impl.linearRemove(impl[i..i+1]);
-					found = true;
-					static if(!is(Stuff == T[]))
-					{
-						if(collectionChangedSubject.hasSubscribers) {
-							oldItems ~ v;
-						}
-					}
-					break;
-				}
-			}
-
-			if(!found) throw new Error("Item not found");
-		}
-
-		if(collectionChangedSubject.hasSubscribers) 
-		{
-			auto listChange = ListChange.init;
-			listChange.type = ListChangeType.Remove;
-			listChange.oldItems = oldItems;
-			collectionChangedSubject.next(listChange);
-		}
-	}
-
-	void clear() 
-	{
-		impl.clear(); 
-
-		auto listChange = ListChange.init;
-		listChange.type = ListChangeType.Reset;
-		collectionChangedSubject.next(listChange);
+		impl = Array!(stuff);
 	}
 
 	@property size_t length() const { return impl.length; }
@@ -149,19 +44,6 @@ class ReactiveList(T)
 		return impl[index];
 	}
 
-	void set(size_t index, T value) 
-	{
-		T oldValue = impl[index];
-		impl[index] = value;
-
-		auto listChange = ListChange.init;
-		listChange.type = ListChangeType.AddOrReplace;
-		listChange.oldItems = [oldValue];
-		listChange.newItemsFirstIndex = index;
-		listChange.newItems = impl[index..index+1];
-		collectionChangedSubject.next(listChange);
-	}
-
 	ConstRange opSlice() const { return impl[]; }
 
 	ConstRange opSlice(size_t begin, size_t excl_end) const
@@ -170,8 +52,161 @@ class ReactiveList(T)
 	}
 }
 
+abstract class ReadOnlyReactiveList(T) : ReadOnlyList!T
+{
+	alias ItemsAddedRange = Range;
+
+	struct ItemsAddedDescriptor
+	{
+		private size_t myNewItemsFirstIndex;
+		private ItemsAddedRange myNewItems;
+
+		@property size_t newItemsFirstIndex() const { return myNewItemsFirstIndex; }
+		@property ItemsAddedRange newItems() { return myNewItems; }
+
+		this(size_t newItemsFirstIndex, ItemsAddedRange newItems)
+		{
+			this.myNewItemsFirstIndex = newItemsFirstIndex;
+			this.myNewItems = newItems;
+		}
+	}
+
+	struct ItemsRemovedDescriptor
+	{
+		private bool myIsReset;
+		private ReadOnlyList!T myOldItems;
+	
+		@property bool isReset() const { return myIsReset; }
+		@property ReadOnlyList!T oldItems() { return myOldItems; }
+
+		this(bool isReset, ReadOnlyList!T oldItems)
+		{
+			this.myIsReset = isReset;
+			this.myOldItems = oldItems;
+		}
+	}
+
+	private Subject!ItemsAddedDescriptor itemsAddedSubject = new Subject!ItemsAddedDescriptor;
+	@property Observable!ItemsAddedDescriptor itemsAdded() { return itemsAddedSubject; }
+
+	private Subject!ItemsRemovedDescriptor itemsRemovedSubject = new Subject!ItemsRemovedDescriptor;
+	@property Observable!ItemsRemovedDescriptor itemsRemoved() { return itemsRemovedSubject; }
+}
+
+class ReactiveList(T) : ReadOnlyReactiveList!T
+{
+	void add(T item)
+	{
+		auto i = impl.length;
+		impl.insertBack(item);
+		auto listChange = ItemsAddedDescriptor(i, impl[i..$]);
+		itemsAddedSubject.next(listChange);
+	}
+
+	// covers T[]
+	// covers Array!T
+	void addRange(Stuff)(Stuff stuff) if (isInputRange!Stuff && isImplicitlyConvertible!(ElementType!Stuff, T))
+	{
+		auto i = impl.length;
+		impl.insertBack(stuff);
+		auto listChange = ItemsAddedDescriptor(i, impl[i..$]);
+		itemsAddedSubject.next(listChange);
+	}
+
+	void remove(T v)
+	{
+		bool found = false;
+		for(size_t i = 0; i<impl.length; i++)
+		{
+			if(impl[i] == v) 
+			{
+				impl.linearRemove(impl[i..i+1]);
+				found = true;
+				break;
+			}
+		}
+
+		if(!found) throw new Error("Item not found");
+
+		if(itemsRemovedSubject.hasSubscribers) 
+		{
+			auto listChange = ItemsRemovedDescriptor(false, new ReadOnlyList!T(v));
+			itemsRemovedSubject.next(listChange);
+		}
+	}
+
+	void removeRange(Stuff)(Stuff val) if (isInputRange!Stuff && isImplicitlyConvertible!(ElementType!Stuff, T))
+	{
+		T[] oldItems;
+		static if(is(Stuff == T[]))
+		{
+			if(itemsRemovedSubject.hasSubscribers) 
+			{
+				oldItems = val;
+			}
+		}
+		
+		foreach(v; val)
+		{
+			bool found = false;
+			for(size_t i = 0; i<impl.length; i++)
+			{
+				if(impl[i] == v) 
+				{
+					impl.linearRemove(impl[i..i+1]);
+					found = true;
+					static if(!is(Stuff == T[]))
+					{
+						if(itemsRemovedSubject.hasSubscribers) 
+						{
+							oldItems ~ v;
+						}
+					}
+					break;
+				}
+			}
+
+			if(!found) throw new Error("Item not found");
+		}
+
+		if(itemsRemovedSubject.hasSubscribers) 
+		{
+			auto listChange = ItemsRemovedDescriptor(false, new ReadOnlyList!T(oldItems));
+			itemsRemovedSubject.next(listChange);
+		}
+	}
+
+	void clear() 
+	{
+		impl.clear(); 
+
+		auto listChange = ItemsRemovedDescriptor(true, null);
+		itemsRemovedSubject.next(listChange);
+	}
+
+	void set(size_t index, T value) 
+	{
+		T oldValue = impl[index];
+		impl[index] = value;
+
+		auto listChange = ItemsRemovedDescriptor(false, new ReadOnlyList!T(oldValue));
+		itemsRemovedSubject.next(listChange);
+		
+		auto listChange2 = ItemsAddedDescriptor(index, impl[index..index+1]);
+		itemsAddedSubject.next(listChange2);
+	}
+
+	T opIndexAssign(T v, size_t i)
+	{
+		set(i, v);
+		return v;
+	}
+}
+
 unittest
 {
+	import modernui.rx;
+
 	auto list = new ReactiveList!int;
 	assert(list.length == 0);
 
@@ -191,6 +226,27 @@ unittest
 	assert(list.length == 1);
 	foreach(i; list[])
 	{
-		;
+		assert(i == 1);
 	}
+
+	list.add(7);
+	list.add(9);
+	assert(list[2] == 9);
+	assert(list.contains(7));
+	assert(!list.contains(700));
+	list[2] = 10;
+	assert(list[2] == 10);
+	assert(list.length == 3);
+	list.remove(7);
+	assert(list.length == 2);
+
+	list.clear();
+	assert(list.length == 0);
+
+	bool changeInvoked = false;
+	list.itemsAdded.then!(typeof(list).ItemsAddedDescriptor)((v) {
+		changeInvoked = true;
+	});
+	list.add(9);
+	assert(changeInvoked);
 }
