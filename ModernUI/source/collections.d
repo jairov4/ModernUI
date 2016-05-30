@@ -56,7 +56,7 @@ abstract class ReadOnlyReactiveList(T) : ReadOnlyList!T
 {
 	alias ItemsAddedRange = Range;
 
-	struct ItemsAddedDescriptor
+	struct ItemsAdded
 	{
 		private size_t myNewItemsFirstIndex;
 		private ItemsAddedRange myNewItems;
@@ -71,7 +71,7 @@ abstract class ReadOnlyReactiveList(T) : ReadOnlyList!T
 		}
 	}
 
-	struct ItemsRemovedDescriptor
+	struct ItemsRemoved
 	{
 		private bool myIsReset;
 		private ReadOnlyList!T myOldItems;
@@ -86,11 +86,11 @@ abstract class ReadOnlyReactiveList(T) : ReadOnlyList!T
 		}
 	}
 
-	private Subject!ItemsAddedDescriptor itemsAddedSubject = new Subject!ItemsAddedDescriptor;
-	@property Observable!ItemsAddedDescriptor itemsAdded() { return itemsAddedSubject; }
+	private Subject!ItemsAdded itemsAddedSubject = new Subject!ItemsAdded;
+	@property Observable!ItemsAdded itemsAdded() { return itemsAddedSubject; }
 
-	private Subject!ItemsRemovedDescriptor itemsRemovedSubject = new Subject!ItemsRemovedDescriptor;
-	@property Observable!ItemsRemovedDescriptor itemsRemoved() { return itemsRemovedSubject; }
+	private Subject!ItemsRemoved itemsRemovedSubject = new Subject!ItemsRemoved;
+	@property Observable!ItemsRemoved itemsRemoved() { return itemsRemovedSubject; }
 }
 
 class ReactiveList(T) : ReadOnlyReactiveList!T
@@ -99,7 +99,7 @@ class ReactiveList(T) : ReadOnlyReactiveList!T
 	{
 		auto i = impl.length;
 		impl.insertBack(item);
-		auto listChange = ItemsAddedDescriptor(i, impl[i..$]);
+		auto listChange = ItemsAdded(i, impl[i..$]);
 		itemsAddedSubject.next(listChange);
 	}
 
@@ -109,7 +109,7 @@ class ReactiveList(T) : ReadOnlyReactiveList!T
 	{
 		auto i = impl.length;
 		impl.insertBack(stuff);
-		auto listChange = ItemsAddedDescriptor(i, impl[i..$]);
+		auto listChange = ItemsAdded(i, impl[i..$]);
 		itemsAddedSubject.next(listChange);
 	}
 
@@ -130,7 +130,7 @@ class ReactiveList(T) : ReadOnlyReactiveList!T
 
 		if(itemsRemovedSubject.hasSubscribers) 
 		{
-			auto listChange = ItemsRemovedDescriptor(false, new ReadOnlyList!T(v));
+			auto listChange = ItemsRemoved(false, new ReadOnlyList!T(v));
 			itemsRemovedSubject.next(listChange);
 		}
 	}
@@ -171,7 +171,7 @@ class ReactiveList(T) : ReadOnlyReactiveList!T
 
 		if(itemsRemovedSubject.hasSubscribers) 
 		{
-			auto listChange = ItemsRemovedDescriptor(false, new ReadOnlyList!T(oldItems));
+			auto listChange = ItemsRemoved(false, new ReadOnlyList!T(oldItems));
 			itemsRemovedSubject.next(listChange);
 		}
 	}
@@ -180,7 +180,7 @@ class ReactiveList(T) : ReadOnlyReactiveList!T
 	{
 		impl.clear(); 
 
-		auto listChange = ItemsRemovedDescriptor(true, null);
+		auto listChange = ItemsRemoved(true, null);
 		itemsRemovedSubject.next(listChange);
 	}
 
@@ -189,10 +189,10 @@ class ReactiveList(T) : ReadOnlyReactiveList!T
 		T oldValue = impl[index];
 		impl[index] = value;
 
-		auto listChange = ItemsRemovedDescriptor(false, new ReadOnlyList!T(oldValue));
+		auto listChange = ItemsRemoved(false, new ReadOnlyList!T(oldValue));
 		itemsRemovedSubject.next(listChange);
 		
-		auto listChange2 = ItemsAddedDescriptor(index, impl[index..index+1]);
+		auto listChange2 = ItemsAdded(index, impl[index..index+1]);
 		itemsAddedSubject.next(listChange2);
 	}
 
@@ -244,7 +244,7 @@ unittest
 	assert(list.length == 0);
 
 	bool changeInvoked = false;
-	list.itemsAdded.then!(typeof(list).ItemsAddedDescriptor)((v) {
+	list.itemsAdded.then!(typeof(list).ItemsAdded)((v) {
 		changeInvoked = true;
 	});
 	list.add(9);
