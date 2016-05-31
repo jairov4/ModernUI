@@ -48,12 +48,8 @@ abstract class Visual : DependencyObject
 	static this() { registerClass!(typeof(this)); }
 
 	mixin DefineDependencyPropertyReadOnly!(Visual, "visualParent");
-	mixin DefineDependencyPropertyReadOnly!(double, "desiredWidth");
-	mixin DefineDependencyPropertyReadOnly!(double, "desiredHeight");
-	mixin DefineDependencyPropertyReadOnly!(double, "actualX");
-	mixin DefineDependencyPropertyReadOnly!(double, "actualY");
-	mixin DefineDependencyPropertyReadOnly!(double, "actualWidth");
-	mixin DefineDependencyPropertyReadOnly!(double, "actualHeight");
+	mixin DefineDependencyPropertyReadOnly!(Size, "desiredSize");
+	mixin DefineDependencyPropertyReadOnly!(Rect, "actualRect");
 	mixin DefineDependencyPropertyReadOnly!(bool, "isMeasurementValid");
 	mixin DefineDependencyPropertyReadOnly!(bool, "isArrangementValid");
 
@@ -134,8 +130,7 @@ abstract class UIElement : Visual
 		auto size = Size.init;
 		if(isCollapsible && !isVisible)
 		{
-			desiredWidth = size.width;
-			desiredHeight = size.height;
+			desiredSize = size;
 			return size;
 		}
 
@@ -162,13 +157,13 @@ abstract class UIElement : Visual
 			size.height += margin.heightContribution + border.heightContribution + padding.heightContribution;
 		}
 
-		desiredWidth = size.width;
-		desiredHeight = size.height;
+		desiredSize = size;
 		return size;
 	}
 
 	protected override void arrange(const Rect site)
 	{
+		actualRect = site;
 		auto location = site.location.offset(Point(margin.left + border.left + padding.left, margin.top + border.top + padding.top));
 		auto size = site.size.shrink(Size(location.x + margin.right + border.right + padding.right, location.y + margin.bottom + border.bottom + padding.bottom));
 		auto childrenSite = Rect(location, size);
@@ -176,11 +171,6 @@ abstract class UIElement : Visual
 		{
 			v.arrange(childrenSite);
 		}
-
-		actualX = site.location.x;
-		actualY = site.location.y;
-		actualWidth = site.size.width;
-		actualHeight = site.size.height;
 	}
 }
 
