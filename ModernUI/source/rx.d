@@ -87,6 +87,8 @@ abstract class Observable(T)
 	private Subscription[Observer!T] observers;
 	private bool myIsCompleted;
 
+	alias ObservedType = T;
+
 	@property bool isCompleted() { return myIsCompleted; }
 	@property bool hasSubscribers() { return observers.length != 0; }
 

@@ -3,6 +3,7 @@ module winmain;
 import core.runtime;
 import core.sys.windows.windows;
 import modernui.core;
+import modernui.ui;
 
 extern (Windows)
 int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
@@ -36,5 +37,9 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
 
 int myWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
+	auto wnd = new Window();
+	wnd.show;
+	wnd.messageLoop;
+
 	return 0;
 }

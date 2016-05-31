@@ -205,37 +205,49 @@ abstract class DependencyObject : INotifyPropertyChanged
 	override @property Observable!PropertyChange propertyChanged() { return subjectPropertyChanged; }
 }
 
+mixin template DefineDependencyProperty(Type, alias name)
+{
+	mixin("private " ~ Type.stringof ~ " " ~ "_my_" ~ name ~ ";");
+	mixin("@DependencyProperty @property " ~ Type.stringof ~ " " ~ name ~ "() { return _my_" ~ name ~ "; }" );
+	mixin("@DependencyProperty @property void " ~ name ~ "("~ Type.stringof ~" value) { this.setProperty!" ~ name ~ "(this._my_" ~ name ~ ", value); }" );
+}
+
+mixin template DefineDependencyPropertyReadOnly(Type, alias name)
+{
+	mixin("private " ~ Type.stringof ~ " _my_" ~ name ~ ";");
+	mixin("@DependencyProperty @property " ~ Type.stringof ~ " " ~ name ~ "() { return _my_" ~ name ~ "; }" );
+	mixin("private @DependencyProperty @property void " ~ name ~ "("~ Type.stringof ~" value) { this.setProperty!" ~ name ~ "(this._my_" ~ name ~ ", value); }" );
+}
+
 version(unittest)
 {
 	// Sample of basic use case
-	final class Element : DependencyObject
+	final class TestElement : DependencyObject
 	{
 		// Define your dependency property
-		private double myWidth;
-		@property @DependencyProperty double width() {return myWidth;}
-		@property void width(double value) { this.setProperty!width(this.myWidth, value); }
+		mixin DefineDependencyProperty!(double, "width");
 
 		// Initialize the internal reflection data structures
 		static this() { registerClass!(typeof(this))(); }
 	}
+}
 
-	void test_dependency_property()
-	{
-		auto element = new Element;
-		element.width = 34;
-		string propertyWhatChanged = null;
+unittest
+{
+	auto element = new TestElement;
+	element.width = 34;
+	string propertyWhatChanged = null;
 
-		// Subscribe a simple change listener
-		element.propertyChanged.then!PropertyChange((v) {
-			propertyWhatChanged = v.name;
-		});
+	// Subscribe a simple change listener
+	element.propertyChanged.then!PropertyChange((v) {
+		propertyWhatChanged = v.name;
+	});
 
-		import std.algorithm;
-		assert(propertyWhatChanged != nameof!(Element.width));
-		assert(element.width == 34);
-		element.width = 15;
+	import std.algorithm;
+	assert(propertyWhatChanged != nameof!(TestElement.width));
+	assert(element.width == 34);
+	element.width = 15;
 
-		assert(propertyWhatChanged == nameof!(Element.width));
-		assert(element.width == 15);
-	}
+	assert(propertyWhatChanged == nameof!(TestElement.width));
+	assert(element.width == 15);
 }

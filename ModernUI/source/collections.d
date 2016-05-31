@@ -5,13 +5,58 @@ import std.container.array;
 import std.traits;
 import modernui.rx;
 
+struct ReadOnlyListRange(E)
+{
+	Array!(E).Range range;
+
+	this(Array!(E).Range r)
+	{
+		range = r;
+	}
+
+	@property ReadOnlyListRange save()
+	{
+		return this;
+	}
+
+	@property bool empty() @safe pure nothrow const
+	{
+		return range.empty();
+	}
+
+	@property size_t length() @safe pure nothrow const
+	{
+		return range.length();
+	}
+    
+	alias opDollar = length;
+
+	@property E front()
+	{
+		return range.front();
+	}
+
+	@property E back()
+	{
+		return range.back();
+	}
+
+	void popFront() @safe pure nothrow
+	{
+		range.popFront();
+	}
+
+	void popBack() @safe pure nothrow
+	{
+		range.popBack();
+	}
+}
+
 class ReadOnlyList(T)
 {
 	private Array!T impl;
 
-	alias Range = Array!(T).Range;
-	alias ConstRange = Array!(T).ConstRange;
-	alias ImmutableRange = Array!(T).ImmutableRange;
+	alias Range = ReadOnlyListRange!T;
 
 	this()
 	{
@@ -39,58 +84,63 @@ class ReadOnlyList(T)
 		return false;
 	}
 
-	inout(T) opIndex(size_t index) inout
+	T opIndex(size_t index)
 	{
 		return impl[index];
 	}
 
-	ConstRange opSlice() const { return impl[]; }
+	Range opSlice() { return Range(impl[]); }
 
-	ConstRange opSlice(size_t begin, size_t excl_end) const
+	Range opSlice(size_t begin, size_t excl_end)
 	{
-		return impl[begin..excl_end];
+		return Range(impl[begin..excl_end]);
+	}
+
+	alias opDollar = length;
+}
+
+struct ItemsAdded(T)
+{
+	alias ItemsAddedRange = ReadOnlyList!T.Range;
+
+	private size_t myNewItemsFirstIndex;
+	private ItemsAddedRange myNewItems;
+
+	@property size_t newItemsFirstIndex() const { return myNewItemsFirstIndex; }
+	@property ItemsAddedRange newItems() { return myNewItems; }
+
+	this(size_t newItemsFirstIndex, ItemsAddedRange newItems)
+	{
+		this.myNewItemsFirstIndex = newItemsFirstIndex;
+		this.myNewItems = newItems;
+	}
+}
+
+struct ItemsRemoved(T)
+{
+	private bool myIsReset;
+	private ReadOnlyList!T myOldItems;
+
+	@property bool isReset() const { return myIsReset; }
+	@property ReadOnlyList!T oldItems() { return myOldItems; }
+
+	this(bool isReset, ReadOnlyList!T oldItems)
+	{
+		this.myIsReset = isReset;
+		this.myOldItems = oldItems;
 	}
 }
 
 abstract class ReadOnlyReactiveList(T) : ReadOnlyList!T
 {
-	alias ItemsAddedRange = Range;
+	alias ItemsAddedDesc = ItemsAdded!T;
+	alias ItemsRemovedDesc = ItemsRemoved!T;
 
-	struct ItemsAdded
-	{
-		private size_t myNewItemsFirstIndex;
-		private ItemsAddedRange myNewItems;
+	private Subject!ItemsAddedDesc itemsAddedSubject = new Subject!ItemsAddedDesc;
+	@property Observable!ItemsAddedDesc itemsAdded() { return itemsAddedSubject; }
 
-		@property size_t newItemsFirstIndex() const { return myNewItemsFirstIndex; }
-		@property ItemsAddedRange newItems() { return myNewItems; }
-
-		this(size_t newItemsFirstIndex, ItemsAddedRange newItems)
-		{
-			this.myNewItemsFirstIndex = newItemsFirstIndex;
-			this.myNewItems = newItems;
-		}
-	}
-
-	struct ItemsRemoved
-	{
-		private bool myIsReset;
-		private ReadOnlyList!T myOldItems;
-	
-		@property bool isReset() const { return myIsReset; }
-		@property ReadOnlyList!T oldItems() { return myOldItems; }
-
-		this(bool isReset, ReadOnlyList!T oldItems)
-		{
-			this.myIsReset = isReset;
-			this.myOldItems = oldItems;
-		}
-	}
-
-	private Subject!ItemsAdded itemsAddedSubject = new Subject!ItemsAdded;
-	@property Observable!ItemsAdded itemsAdded() { return itemsAddedSubject; }
-
-	private Subject!ItemsRemoved itemsRemovedSubject = new Subject!ItemsRemoved;
-	@property Observable!ItemsRemoved itemsRemoved() { return itemsRemovedSubject; }
+	private Subject!ItemsRemovedDesc itemsRemovedSubject = new Subject!ItemsRemovedDesc;
+	@property Observable!ItemsRemovedDesc itemsRemoved() { return itemsRemovedSubject; }
 }
 
 class ReactiveList(T) : ReadOnlyReactiveList!T
@@ -99,7 +149,7 @@ class ReactiveList(T) : ReadOnlyReactiveList!T
 	{
 		auto i = impl.length;
 		impl.insertBack(item);
-		auto listChange = ItemsAdded(i, impl[i..$]);
+		auto listChange = ItemsAdded!T(i, this[i..$]);
 		itemsAddedSubject.next(listChange);
 	}
 
@@ -109,7 +159,7 @@ class ReactiveList(T) : ReadOnlyReactiveList!T
 	{
 		auto i = impl.length;
 		impl.insertBack(stuff);
-		auto listChange = ItemsAdded(i, impl[i..$]);
+		auto listChange = ItemsAdded!T(i, this[i..$]);
 		itemsAddedSubject.next(listChange);
 	}
 
@@ -130,7 +180,7 @@ class ReactiveList(T) : ReadOnlyReactiveList!T
 
 		if(itemsRemovedSubject.hasSubscribers) 
 		{
-			auto listChange = ItemsRemoved(false, new ReadOnlyList!T(v));
+			auto listChange = ItemsRemoved!T(false, new ReadOnlyList!T(v));
 			itemsRemovedSubject.next(listChange);
 		}
 	}
@@ -171,16 +221,16 @@ class ReactiveList(T) : ReadOnlyReactiveList!T
 
 		if(itemsRemovedSubject.hasSubscribers) 
 		{
-			auto listChange = ItemsRemoved(false, new ReadOnlyList!T(oldItems));
+			auto listChange = ItemsRemoved!T(false, new ReadOnlyList!T(oldItems));
 			itemsRemovedSubject.next(listChange);
 		}
 	}
 
 	void clear() 
 	{
-		impl.clear(); 
+		impl.clear();
 
-		auto listChange = ItemsRemoved(true, null);
+		auto listChange = ItemsRemoved!T(true, null);
 		itemsRemovedSubject.next(listChange);
 	}
 
@@ -189,10 +239,10 @@ class ReactiveList(T) : ReadOnlyReactiveList!T
 		T oldValue = impl[index];
 		impl[index] = value;
 
-		auto listChange = ItemsRemoved(false, new ReadOnlyList!T(oldValue));
+		auto listChange = ItemsRemoved!T(false, new ReadOnlyList!T(oldValue));
 		itemsRemovedSubject.next(listChange);
 		
-		auto listChange2 = ItemsAdded(index, impl[index..index+1]);
+		auto listChange2 = ItemsAdded!T(index, this[index..index+1]);
 		itemsAddedSubject.next(listChange2);
 	}
 
@@ -244,7 +294,7 @@ unittest
 	assert(list.length == 0);
 
 	bool changeInvoked = false;
-	list.itemsAdded.then!(typeof(list).ItemsAdded)((v) {
+	list.itemsAdded.then!(ItemsAdded!int)((a) {
 		changeInvoked = true;
 	});
 	list.add(9);
