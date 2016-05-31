@@ -48,7 +48,10 @@ abstract class Visual : DependencyObject
 	static this() { registerClass!(typeof(this)); }
 
 	mixin DefineDependencyPropertyReadOnly!(Visual, "visualParent");
-	mixin DefineDependencyPropertyReadOnly!(Size, "desiredSize");
+	mixin DefineDependencyPropertyReadOnly!(double, "desiredWidth");
+	mixin DefineDependencyPropertyReadOnly!(double, "desiredHeight");
+	mixin DefineDependencyPropertyReadOnly!(double, "actualX");
+	mixin DefineDependencyPropertyReadOnly!(double, "actualY");
 	mixin DefineDependencyPropertyReadOnly!(double, "actualWidth");
 	mixin DefineDependencyPropertyReadOnly!(double, "actualHeight");
 	mixin DefineDependencyPropertyReadOnly!(bool, "isMeasurementValid");
@@ -131,7 +134,8 @@ abstract class UIElement : Visual
 		auto size = Size.init;
 		if(isCollapsible && !isVisible)
 		{
-			desiredSize = size;
+			desiredWidth = size.width;
+			desiredHeight = size.height;
 			return size;
 		}
 
@@ -158,7 +162,8 @@ abstract class UIElement : Visual
 			size.height += margin.heightContribution + border.heightContribution + padding.heightContribution;
 		}
 
-		desiredSize = size;
+		desiredWidth = size.width;
+		desiredHeight = size.height;
 		return size;
 	}
 
@@ -171,6 +176,11 @@ abstract class UIElement : Visual
 		{
 			v.arrange(childrenSite);
 		}
+
+		actualX = site.location.x;
+		actualY = site.location.y;
+		actualWidth = site.size.width;
+		actualHeight = site.size.height;
 	}
 }
 

@@ -28,7 +28,7 @@ struct ReadOnlyListRange(E)
 	{
 		return range.length();
 	}
-    
+
 	alias opDollar = length;
 
 	@property E front()
