@@ -3,6 +3,8 @@ module modernui.ui;
 import modernui.core;
 import modernui.collections;
 
+import std.algorithm.iteration;
+
 pragma(lib, "gdi32.lib");
 
 abstract class RenderContext
@@ -124,6 +126,7 @@ abstract class UIElement : Visual
 		invalidateLayout();
 	}
 
+	// assumes children already measured, no recursive impl.
 	protected override Size measure(const Size sizeAvailable)
 	{
 		import std.math : isNaN;
@@ -138,34 +141,44 @@ abstract class UIElement : Visual
 		{
 			foreach(v; this.myChildren[])
 			{
-				auto childSize = v.measure(sizeAvailable);
-				size = childSize.unionWith(size);
+				size = size.unionWith(v.desiredSize);
 			}
 		}
 
+		immutable auto r = [margin, border, padding];
 		if(isNaN(width))
 		{
 			size.width = width;
 		} else {
-			size.width += margin.widthContribution + border.widthContribution + padding.widthContribution;
+			size.width += r.map!(x => x.widthContribution).sum;
 		}
 
 		if(isNaN(height))
 		{
 			size.height = height;
 		} else {
-			size.height += margin.heightContribution + border.heightContribution + padding.heightContribution;
+			size.height += r.map!(x => x.heightContribution).sum;
 		}
 
 		desiredSize = size;
 		return size;
 	}
 
+	// actualRect is relative to parent.
 	protected override void arrange(const Rect site)
 	{
+		// skips unuseful recursion
+		if(site == actualRect) return;
+
 		actualRect = site;
-		auto location = site.location.offset(Point(margin.left + border.left + padding.left, margin.top + border.top + padding.top));
-		auto size = site.size.shrink(Size(location.x + margin.right + border.right + padding.right, location.y + margin.bottom + border.bottom + padding.bottom));
+		immutable auto r = [margin, border, padding];
+		auto left = r.map!(x => x.left).sum;
+		auto right = r.map!(x => x.right).sum;
+		auto top = r.map!(x => x.top).sum;
+		auto bottom = r.map!(x => x.bottom).sum;
+
+		auto location = Point(left, top);
+		auto size = site.size.shrink(Size(left + right, top + bottom));
 		auto childrenSite = Rect(location, size);
 		foreach(v; this.myChildren[])
 		{
@@ -187,7 +200,7 @@ else
 	alias toTStringz = toStringz;
 }
 
-class Window : Visual
+class Window : UIElement
 {
 	static this() { registerClass!(typeof(this)); }
 
@@ -197,15 +210,6 @@ class Window : Visual
 
 	private HINSTANCE hInstance = null;
 	private HWND hWnd = null;
-
-	override protected Size measure(const Size measure)
-	{
-		return Size.init;
-	}
-
-	override protected void arrange(const Rect site)
-	{
-	}
 
 	override protected void render(RenderContext context)
 	{
