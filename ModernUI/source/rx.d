@@ -2,7 +2,16 @@ module modernui.rx;
 
 import modernui.collections;
 
-enum Unit { Unit };
+import std.algorithm;
+import std.range;
+import std.container.array;
+
+struct None
+{
+	void[0] dummy;
+
+	immutable static None val = {};
+}
 
 alias Action(T) = void delegate(T);
 alias Delegate = void delegate();
@@ -85,6 +94,7 @@ final class Observer(T)
 abstract class Observable(T)
 {
 	private Subscription[Observer!T] observers;
+	private Array!(Observer!T) myObserversArray;
 	private bool myIsCompleted;
 
 	alias ObservedType = T;
@@ -103,6 +113,8 @@ abstract class Observable(T)
 
 		auto subscription = observers[observer];
 		auto result = observers.remove(observer);
+		auto foundObs = myObserversArray[].find(observer).takeOne;
+		myObserversArray.linearRemove(foundObs);
 		subscription.release();
 		return result;
 	}
@@ -110,9 +122,11 @@ abstract class Observable(T)
 
 final class Subject(T) : Observable!T
 {
+	import std.stdio : writefln;
+
 	void next(T value)
 	{
-		foreach(observer ; observers.keys)
+		foreach(observer ; myObserversArray)
 		{
 			observer.onNext(value);
 		}
@@ -120,7 +134,7 @@ final class Subject(T) : Observable!T
 
 	void complete()
 	{
-		foreach(observer ; observers.keys)
+		foreach(observer ; myObserversArray)
 		{
 			observer.onCompleted();
 		}
@@ -131,7 +145,7 @@ final class Subject(T) : Observable!T
 
 	void error(Exception e)
 	{
-		foreach(observer ; observers.keys)
+		foreach(observer ; myObserversArray)
 		{
 			observer.onError(e);
 		}
@@ -149,6 +163,8 @@ final class Subject(T) : Observable!T
 		});
 
 		observers[observer] = subscription;
+		myObserversArray.insertBack(observer);
+
 		return subscription;
 	}
 }
@@ -203,6 +219,8 @@ abstract class Promise(T) : Observable!T
 		});
 
 		observers[observer] = subscription;
+		myObserversArray.insertBack(observer);
+
 		return subscription;
 	}
 }
@@ -212,12 +230,12 @@ final class Deferred(T) : Promise!T
 	void resolve(T value)
 	{
 		myIsCompleted = true;
-		foreach(observer ; observers.keys)
+		foreach(observer; myObserversArray)
 		{
 			observer.onNext(value);
 		}
 
-		foreach(observer ; observers.keys)
+		foreach(observer; myObserversArray)
 		{
 			observer.onCompleted();
 		}
@@ -228,12 +246,12 @@ final class Deferred(T) : Promise!T
 	void error(Exception e)
 	{
 		myIsCompleted = true;
-		foreach(observer ; observers.keys)
+		foreach(observer; myObserversArray)
 		{
 			observer.onError(e);
 		}
 
-		foreach(observer ; observers.keys)
+		foreach(observer; myObserversArray)
 		{
 			observer.onCompleted();
 		}
@@ -242,20 +260,19 @@ final class Deferred(T) : Promise!T
 	}
 }
 
-Observable!T then(T)(Observable!T self, Action!T action)
+Subscription then(T)(Observable!T self, Action!T action)
 {
-	self.subscribe(new Observer!T(action));
-	return self;
+	return self.subscribe(new Observer!T(action));
 }
 
-Observable!T then(T)(Observable!T self, Action!T action, Action!Exception error)
+Subscription then(T)(Observable!T self, Action!T action, Action!Exception error)
 {
 	self.subscribe(new Observer!T(action, error));
 }
 
-void then(T)(Observable!T self, Action!T action, Action!Exception error, Delegate complete)
+Subscription then(T)(Observable!T self, Action!T action, Action!Exception error, Delegate complete)
 {
-	self.subscribe(new Observer!T(action, error, complete));
+	return self.subscribe(new Observer!T(action, error, complete));
 }
 
 unittest
@@ -327,11 +344,4 @@ unittest
 
 	obs1.complete();
 	assert(merged.isCompleted);
-}
-
-struct None
-{
-	void[0] dummy;
-
-	immutable static None val = {};
 }

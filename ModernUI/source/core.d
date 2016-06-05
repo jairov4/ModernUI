@@ -207,16 +207,16 @@ abstract class DependencyObject : INotifyPropertyChanged
 
 mixin template DefineDependencyProperty(Type, alias name)
 {
-	mixin("private " ~ Type.stringof ~ " " ~ "_my_" ~ name ~ ";");
-	mixin("@DependencyProperty @property " ~ Type.stringof ~ " " ~ name ~ "() { return _my_" ~ name ~ "; }" );
-	mixin("@DependencyProperty @property void " ~ name ~ "("~ Type.stringof ~" value) { this.setProperty!" ~ name ~ "(this._my_" ~ name ~ ", value); }" );
+	mixin("private " ~ Type.stringof ~ " " ~ "_dp_" ~ name ~ ";");
+	mixin("@DependencyProperty @property " ~ Type.stringof ~ " " ~ name ~ "() { return _dp_" ~ name ~ "; }" );
+	mixin("@DependencyProperty @property void " ~ name ~ "("~ Type.stringof ~" value) { this.setProperty!" ~ name ~ "(this._dp_" ~ name ~ ", value); }" );
 }
 
 mixin template DefineDependencyPropertyReadOnly(Type, alias name)
 {
-	mixin("private " ~ Type.stringof ~ " _my_" ~ name ~ ";");
-	mixin("@DependencyProperty @property " ~ Type.stringof ~ " " ~ name ~ "() { return _my_" ~ name ~ "; }" );
-	mixin("private @DependencyProperty @property void " ~ name ~ "("~ Type.stringof ~" value) { this.setProperty!" ~ name ~ "(this._my_" ~ name ~ ", value); }" );
+	mixin("private " ~ Type.stringof ~ " " ~ "_dp_" ~ name ~ ";");
+	mixin("@DependencyProperty @property " ~ Type.stringof ~ " " ~ name ~ "() { return _dp_" ~ name ~ "; }" );
+	mixin("private @DependencyProperty @property void " ~ name ~ "("~ Type.stringof ~" value) { this.setProperty!" ~ name ~ "(this._dp_" ~ name ~ ", value); }" );
 }
 
 version(unittest)

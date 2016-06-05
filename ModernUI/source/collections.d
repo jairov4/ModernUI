@@ -136,11 +136,18 @@ abstract class ReadOnlyReactiveList(T) : ReadOnlyList!T
 	alias ItemsAddedDesc = ItemsAdded!T;
 	alias ItemsRemovedDesc = ItemsRemoved!T;
 
-	private Subject!ItemsAddedDesc itemsAddedSubject = new Subject!ItemsAddedDesc;
 	@property Observable!ItemsAddedDesc itemsAdded() { return itemsAddedSubject; }
+	private Subject!ItemsAddedDesc itemsAddedSubject;
 
-	private Subject!ItemsRemovedDesc itemsRemovedSubject = new Subject!ItemsRemovedDesc;
+	// This property do not guarantee that remove is complete on reset
 	@property Observable!ItemsRemovedDesc itemsRemoved() { return itemsRemovedSubject; }
+	private Subject!ItemsRemovedDesc itemsRemovedSubject;
+
+	this()
+	{
+		itemsAddedSubject = new Subject!ItemsAddedDesc;
+		itemsRemovedSubject = new Subject!ItemsRemovedDesc;
+	}
 }
 
 class ReactiveList(T) : ReadOnlyReactiveList!T
@@ -159,6 +166,8 @@ class ReactiveList(T) : ReadOnlyReactiveList!T
 	{
 		auto i = impl.length;
 		impl.insertBack(stuff);
+
+		if(!itemsAddedSubject.hasSubscribers) return;
 		auto listChange = ItemsAdded!T(i, this[i..$]);
 		itemsAddedSubject.next(listChange);
 	}
@@ -178,24 +187,20 @@ class ReactiveList(T) : ReadOnlyReactiveList!T
 
 		if(!found) throw new Error("Item not found");
 
-		if(itemsRemovedSubject.hasSubscribers) 
-		{
-			auto listChange = ItemsRemoved!T(false, new ReadOnlyList!T(v));
-			itemsRemovedSubject.next(listChange);
-		}
+		if(!itemsRemovedSubject.hasSubscribers) return;
+		auto listChange = ItemsRemoved!T(false, new ReadOnlyList!T(v));
+		itemsRemovedSubject.next(listChange);
 	}
 
 	void removeRange(Stuff)(Stuff val) if (isInputRange!Stuff && isImplicitlyConvertible!(ElementType!Stuff, T))
 	{
-		T[] oldItems;
-		static if(is(Stuff == T[]))
+		static if(is(Stuff == ReadOnlyList!T))
 		{
-			if(itemsRemovedSubject.hasSubscribers) 
-			{
-				oldItems = val;
-			}
+			assert(val !is this);
+		} else {
+			auto oldItems = new ReactiveList!T;
 		}
-		
+
 		foreach(v; val)
 		{
 			bool found = false;
@@ -205,11 +210,14 @@ class ReactiveList(T) : ReadOnlyReactiveList!T
 				{
 					impl.linearRemove(impl[i..i+1]);
 					found = true;
-					static if(!is(Stuff == T[]))
+					static if(!is(Stuff == ReadOnlyList!T))
 					{
-						if(itemsRemovedSubject.hasSubscribers) 
+						if(itemsRemovedSubject.hasSubscribers)
 						{
-							oldItems ~ v;
+							if(oldItems.length > 0) oldItems[0] = v;
+							else oldItems.add(v);
+							auto listChange = ItemsRemoved!T(true, oldItems);
+							itemsRemovedSubject.next(listChange);
 						}
 					}
 					break;
@@ -219,19 +227,23 @@ class ReactiveList(T) : ReadOnlyReactiveList!T
 			if(!found) throw new Error("Item not found");
 		}
 
-		if(itemsRemovedSubject.hasSubscribers) 
+		static if(is(Stuff == ReadOnlyList!T))
 		{
-			auto listChange = ItemsRemoved!T(false, new ReadOnlyList!T(oldItems));
-			itemsRemovedSubject.next(listChange);
+			if(itemsRemovedSubject.hasSubscribers) 
+			{
+				auto listChange = ItemsRemoved!T(true, val);
+				itemsRemovedSubject.next(listChange);
+			}
 		}
 	}
 
 	void clear() 
 	{
-		impl.clear();
-
-		auto listChange = ItemsRemoved!T(true, null);
+		if(!length) return;
+		auto listChange = ItemsRemoved!T(true, this);
 		itemsRemovedSubject.next(listChange);
+
+		impl.clear();
 	}
 
 	void set(size_t index, T value) 

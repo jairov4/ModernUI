@@ -13,8 +13,8 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
 		return -1;
 	}
 
-	try
-	{
+	//try
+	//{
 		version(unittest)
 		{
 			if(!runModuleUnitTests())
@@ -27,17 +27,19 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
 		auto result = myWinMain(hInstance, hPrevInstance, lpCmdLine, nCmdShow);
 		Runtime.terminate();
 		return result;
-	}
-	catch (Throwable o) // catch any uncaught exceptions
-	{
-		MessageBoxA(null, cast(char *)o.toString(), "Error", MB_OK | MB_ICONEXCLAMATION);
-		return -1;
-	}
+	//}
+	//catch (Throwable o) // catch any uncaught exceptions
+	//{
+	//    MessageBoxA(null, cast(char *)o.toString(), "Error", MB_OK | MB_ICONEXCLAMATION);
+	//    return -1;
+	//}
 }
 
 int myWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
-	auto wnd = new Window();
+	auto wnd = new Window;
+	auto text = new TextElement;
+	wnd.content = text;
 	wnd.show;
 	wnd.messageLoop;
 

@@ -1,14 +1,17 @@
 module modernui.ui;
 
 import modernui.core;
+import modernui.rx;
 import modernui.collections;
 
 import std.algorithm.iteration;
+import std.container.array;
 
 pragma(lib, "gdi32.lib");
 
 abstract class RenderContext
 {
+	abstract void drawText(double x, double y, string text);
 }
 
 struct Size
@@ -48,26 +51,56 @@ struct Rect
 abstract class Visual : DependencyObject
 {
 	static this() { registerClass!(typeof(this)); }
+	this()
+	{
+		myVisualChildren = new ReactiveList!Visual;
+		myInvalidMeasure = new Subject!None;
+		myInvalidArrangement = new Subject!None;
+		visualChildren.itemsAdded.then!(ItemsAdded!Visual)(&onVisualChildrenAdded);
+		visualChildren.itemsRemoved.then!(ItemsRemoved!Visual)(&onVisualChildrenRemoved);
+	}
 
 	mixin DefineDependencyPropertyReadOnly!(Visual, "visualParent");
 	mixin DefineDependencyPropertyReadOnly!(Size, "desiredSize");
 	mixin DefineDependencyPropertyReadOnly!(Rect, "actualRect");
-	mixin DefineDependencyPropertyReadOnly!(bool, "isMeasurementValid");
-	mixin DefineDependencyPropertyReadOnly!(bool, "isArrangementValid");
 
-	private ReactiveList!Visual myChildren;
+	private ReactiveList!Visual myVisualChildren;
+	protected @property ReactiveList!Visual visualChildren() { return myVisualChildren; }
 
-	protected void invalidateLayout()
-	{
-		isMeasurementValid = false;
-		isArrangementValid = false;
-	}
+	private Subject!None myInvalidMeasure;
+	@property Observable!None invalidMeasure() { return myInvalidMeasure; }
+
+	private Subject!None myInvalidArrangement;
+	@property Observable!None invalidArrangement() { return myInvalidArrangement; }
+
+	protected void invalidateMeasurement() { myInvalidMeasure.next(None.val); }
+	protected void invalidateArrangement() { myInvalidArrangement.next(None.val); }
 
 	protected abstract Size measure(const Size measure);
 
 	protected abstract void arrange(const Rect site);
 
 	protected abstract void render(RenderContext context);
+
+	private void onVisualChildrenAdded(ItemsAdded!Visual info)
+	{
+		foreach(newItem; info.newItems)
+		{
+			newItem.visualParent = this;
+		}
+
+		invalidateMeasurement();
+	}
+
+	private void onVisualChildrenRemoved(ItemsRemoved!Visual info)
+	{
+		foreach(oldItem; info.oldItems)
+		{
+			oldItem.visualParent = null;
+		}
+
+		invalidateMeasurement();
+	}
 }
 
 struct Thickness 
@@ -112,20 +145,6 @@ abstract class UIElement : Visual
 	mixin DefineDependencyProperty!(bool, "isVisible");
 	mixin DefineDependencyProperty!(bool, "isCollapsible");
 
-	protected void changeChild(Visual child)
-	{
-		if(this.myChildren.length == 0)
-		{
-			this.myChildren.add(child);
-		}
-		else
-		{
-			this.myChildren[0] = child;
-		}
-
-		invalidateLayout();
-	}
-
 	// assumes children already measured, no recursive impl.
 	protected override Size measure(const Size sizeAvailable)
 	{
@@ -139,7 +158,7 @@ abstract class UIElement : Visual
 
 		if(isNaN(width) || isNaN(height))
 		{
-			foreach(v; this.myChildren[])
+			foreach(v; this.visualChildren[])
 			{
 				size = size.unionWith(v.desiredSize);
 			}
@@ -180,10 +199,59 @@ abstract class UIElement : Visual
 		auto location = Point(left, top);
 		auto size = site.size.shrink(Size(left + right, top + bottom));
 		auto childrenSite = Rect(location, size);
-		foreach(v; this.myChildren[])
+		foreach(v; visualChildren[])
 		{
 			v.arrange(childrenSite);
 		}
+	}
+}
+
+class TextElement : UIElement
+{
+	static this() { registerClass!(typeof(this)); }
+
+	mixin DefineDependencyProperty!(string, "text");
+
+	protected override void render(RenderContext context)
+	{
+		context.drawText(20, 20, "Hola mundo");
+	}
+
+	this()
+	{
+		propertyChanged.then!PropertyChange((x) {
+			if(x.name != nameof!text) return;
+			invalidateMeasurement();
+		});
+	}
+}
+
+abstract class ContentControl : UIElement
+{
+	static this() { registerClass!(typeof(this)); }
+
+	mixin DefineDependencyProperty!(Visual, "content");
+
+	protected void changeChild(Visual child)
+	{
+		if(visualChildren.length == 0)
+		{
+			visualChildren.add(child);
+		}
+		else
+		{
+			visualChildren[0] = child;
+		}
+
+		invalidateMeasurement();
+	}
+
+	this()
+	{
+		propertyChanged.then!PropertyChange((x) {
+			if(x.name != nameof!content) return;
+			changeChild(content);
+		});
 	}
 }
 
@@ -200,7 +268,41 @@ else
 	alias toTStringz = toStringz;
 }
 
-class Window : UIElement
+private class WindowRenderContext : RenderContext {
+	private HWND hWnd;
+	private PAINTSTRUCT ps;
+	private HDC dc;
+
+	this(HWND hwnd)
+	{
+		this.hWnd = hwnd;
+	}
+
+	void begin()
+	{
+		dc = BeginPaint(hWnd, &ps);
+		RECT r;
+		GetClientRect(hWnd, &r);
+	}
+
+	void end()
+	{
+		EndPaint(hWnd, &ps);
+	}
+
+	override void drawText(double x, double y, string text)
+	{
+		HFONT font = CreateFont(80, 0, 0, 0, FW_EXTRABOLD, FALSE, FALSE,
+								FALSE, ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+								ANTIALIASED_QUALITY, DEFAULT_PITCH | FF_DONTCARE, "Arial");
+		HGDIOBJ old = SelectObject(dc, cast(HGDIOBJ) font);
+		SetTextAlign(dc, TA_CENTER | TA_BASELINE);
+		TextOut(dc, cast(int)x, cast(int)y, text.toTStringz, cast(int)text.length);
+		DeleteObject(SelectObject(dc, old));
+	}
+}
+
+class Window : ContentControl
 {
 	static this() { registerClass!(typeof(this)); }
 
@@ -208,12 +310,16 @@ class Window : UIElement
 
 	static immutable string className = "ModernUIWindow";
 
+	private struct DescendantInfo {
+		int level;
+		Array!Subscription subscriptions;
+	}
+
+	private DescendantInfo[Visual] descendants;
+	private Window selfReference;
+
 	private HINSTANCE hInstance = null;
 	private HWND hWnd = null;
-
-	override protected void render(RenderContext context)
-	{
-	}
 
 	private void registerWindowClass() {
 		HWND hWnd;
@@ -226,7 +332,7 @@ class Window : UIElement
 		wndclass.cbWndExtra    = 0;
 		wndclass.hInstance     = hInstance;
 		wndclass.hIcon         = LoadIcon(null, IDI_APPLICATION);
-		wndclass.hCursor       = LoadCursor(null, IDC_CROSS);
+		wndclass.hCursor       = LoadCursor(null, IDC_ARROW);
 		wndclass.hbrBackground = cast(HBRUSH)GetStockObject(WHITE_BRUSH);
 		wndclass.lpszMenuName  = null;
 		wndclass.lpszClassName = className.toTStringz;
@@ -239,21 +345,24 @@ class Window : UIElement
 
 	private void createWindow()
 	{
-		hWnd = CreateWindow(className.toTStringz,  // window class name
-					 "test".toTStringz,    // window caption
-					 WS_THICKFRAME   |
-					 WS_MAXIMIZEBOX  |
-					 WS_MINIMIZEBOX  |
-					 WS_SYSMENU      |
-					 WS_VISIBLE,           // window style
-					 CW_USEDEFAULT,        // initial x position
-					 CW_USEDEFAULT,        // initial y position
-					 600,                  // initial x size
-					 400,                  // initial y size
-					 HWND_DESKTOP,         // parent window handle
-					 null,                 // window menu handle
-					 hInstance,            // program instance handle
-					 null);                // creation parameters);
+		Window* wnd = &selfReference;
+		hWnd = CreateWindowEx(
+					0, 
+					className.toTStringz,  // window class name
+					"test".toTStringz,    // window caption
+					WS_THICKFRAME   |
+					WS_MAXIMIZEBOX  |
+					WS_MINIMIZEBOX  |
+					WS_SYSMENU      |
+					WS_VISIBLE,           // window style
+					CW_USEDEFAULT,        // initial x position
+					CW_USEDEFAULT,        // initial y position
+					600,                  // initial x size
+					400,                  // initial y size
+					HWND_DESKTOP,         // parent window handle
+					null,                 // window menu handle
+					hInstance,            // program instance handle
+					wnd);                 // creation parameters;
 
 		if(hWnd is null)
 		{
@@ -263,6 +372,7 @@ class Window : UIElement
 
 	this()
 	{
+		selfReference = this;
 		hInstance = GetModuleHandle(null);
 		if(!isClassRegistered) 
 		{
@@ -271,6 +381,40 @@ class Window : UIElement
 		}
 
 		createWindow();
+
+		auto desc = DescendantInfo.init;
+		desc.level = 0;
+		descendants[this] = desc;
+
+		visualChildren.itemsAdded.then!(ItemsAdded!Visual)(&onDescendantsAdded);
+		visualChildren.itemsRemoved.then!(ItemsRemoved!Visual)(&onDescendantsRemoved);
+	}
+
+	void onDescendantsAdded(ItemsAdded!Visual x)
+	{
+		foreach(newItem; x.newItems)
+		{
+			auto desc = DescendantInfo.init;
+			auto subscription = newItem.visualChildren.itemsAdded.then!(ItemsAdded!Visual)(&onDescendantsAdded);
+			desc.subscriptions.insertBack(subscription);
+			subscription = newItem.visualChildren.itemsRemoved.then!(ItemsRemoved!Visual)(&onDescendantsRemoved);
+			desc.subscriptions.insertBack(subscription);
+			desc.level = descendants[newItem.visualParent].level + 1;
+			descendants[newItem] = desc;
+		}
+	}
+
+	void onDescendantsRemoved(ItemsRemoved!Visual x)
+	{
+		foreach(oldItem; x.oldItems)
+		{
+			auto desc = descendants[oldItem];
+			foreach(subscription; desc.subscriptions)
+			{
+				subscription.release;
+			}
+			descendants.remove(oldItem);
+		}
 	}
 
 	void show()
@@ -289,50 +433,41 @@ class Window : UIElement
 		}
 	}
 
+	protected override void render(RenderContext rc)
+	{
+		foreach(child; visualChildren) child.render(rc);
+	}
+
 	extern(Windows)
 	static LRESULT WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) nothrow
 	{
 		switch (message)
 		{
-			case WM_COMMAND:
-				{
-					switch (LOWORD(wParam))
-					{
-						default:
-					}
-
-					break;
-				}
+			case WM_NCCREATE:
+				auto pCreate = cast(CREATESTRUCT*)lParam;
+				auto wnd = cast(Window*)pCreate.lpCreateParams;
+				SetWindowLongPtr(hWnd, GWLP_USERDATA, cast(long)wnd);
+				return true;
 
 			case WM_PAINT:
-				{
-					const text = "Jairo";
-					PAINTSTRUCT ps;
-
-					HDC  dc = BeginPaint(hWnd, &ps);
-					scope(exit) EndPaint(hWnd, &ps);
-					RECT r;
-					GetClientRect(hWnd, &r);
-					
-					HFONT font = CreateFont(80, 0, 0, 0, FW_EXTRABOLD, FALSE, FALSE,
-											 FALSE, ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
-											 ANTIALIASED_QUALITY, DEFAULT_PITCH | FF_DONTCARE, "Arial");
-					HGDIOBJ old = SelectObject(dc, cast(HGDIOBJ) font);
-					SetTextAlign(dc, TA_CENTER | TA_BASELINE);
-					// nothrow
-					try { TextOut(dc, r.right / 2, r.bottom / 2, text.toTStringz, text.length); } catch {}
-					DeleteObject(SelectObject(dc, old));
-					break;
+				auto wnd = cast(Window*)GetWindowLongPtr(hWnd, GWLP_USERDATA);
+				try{
+					auto rc = new WindowRenderContext(hWnd);
+					rc.begin;
+					wnd.render(rc);
+					scope(exit) rc.end;
+				} catch {
 				}
+				break;
 
 			case WM_DESTROY:
 				PostQuitMessage(0);
 				break;
 
 			default:
-				break;
+				return DefWindowProcA(hWnd, message, wParam, lParam);
 		}
 
-		return DefWindowProcA(hWnd, message, wParam, lParam);
+		return 0;
 	}
 }
