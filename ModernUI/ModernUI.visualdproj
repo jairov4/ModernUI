@@ -72,7 +72,7 @@
   <debuglevel>0</debuglevel>
   <debugids />
   <versionlevel>0</versionlevel>
-  <versionids>Unicode</versionids>
+  <versionids>Unicode DX11_2</versionids>
   <dump_source>0</dump_source>
   <mapverbosity>0</mapverbosity>
   <createImplib>0</createImplib>
@@ -174,7 +174,7 @@
   <debuglevel>0</debuglevel>
   <debugids />
   <versionlevel>0</versionlevel>
-  <versionids>Unicode</versionids>
+  <versionids>Unicode DX11_2</versionids>
   <dump_source>0</dump_source>
   <mapverbosity>0</mapverbosity>
   <createImplib>0</createImplib>
@@ -276,7 +276,7 @@
   <debuglevel>0</debuglevel>
   <debugids />
   <versionlevel>0</versionlevel>
-  <versionids>Unicode</versionids>
+  <versionids>Unicode DX11_2</versionids>
   <dump_source>0</dump_source>
   <mapverbosity>0</mapverbosity>
   <createImplib>0</createImplib>
@@ -293,7 +293,7 @@
   <cv2pdbOptions />
   <objfiles />
   <linkswitches />
-  <libfiles />
+  <libfiles>ole32.lib kernel32.lib user32.lib comctl32.lib comdlg32.lib</libfiles>
   <libpaths />
   <deffile />
   <resfile />
@@ -378,7 +378,7 @@
   <debuglevel>0</debuglevel>
   <debugids />
   <versionlevel>0</versionlevel>
-  <versionids>Unicode</versionids>
+  <versionids>Unicode DX11_2</versionids>
   <dump_source>0</dump_source>
   <mapverbosity>0</mapverbosity>
   <createImplib>0</createImplib>
@@ -395,7 +395,7 @@
   <cv2pdbOptions />
   <objfiles />
   <linkswitches />
-  <libfiles />
+  <libfiles>ole32.lib kernel32.lib user32.lib comctl32.lib comdlg32.lib</libfiles>
   <libpaths />
   <deffile />
   <resfile />
@@ -480,7 +480,7 @@
   <debuglevel>0</debuglevel>
   <debugids />
   <versionlevel>0</versionlevel>
-  <versionids>Unicode</versionids>
+  <versionids>Unicode DX11_2</versionids>
   <dump_source>0</dump_source>
   <mapverbosity>0</mapverbosity>
   <createImplib>0</createImplib>
@@ -582,7 +582,7 @@
   <debuglevel>0</debuglevel>
   <debugids />
   <versionlevel>0</versionlevel>
-  <versionids>Unicode</versionids>
+  <versionids>Unicode DX11_2</versionids>
   <dump_source>0</dump_source>
   <mapverbosity>0</mapverbosity>
   <createImplib>0</createImplib>
@@ -599,7 +599,7 @@
   <cv2pdbOptions />
   <objfiles />
   <linkswitches />
-  <libfiles>Gdi32.lib</libfiles>
+  <libfiles>ole32.lib kernel32.lib user32.lib comctl32.lib comdlg32.lib</libfiles>
   <libpaths />
   <deffile />
   <resfile />
@@ -613,6 +613,17 @@
   <filesToClean>*.obj;*.cmd;*.build;*.json;*.dep</filesToClean>
  </Config>
  <Folder name="ModernUI">
+  <Folder name="aurora">
+   <File path="auroragraphics_directx\com.d" />
+   <File path="auroragraphics_directx\config.d" />
+   <File path="auroragraphics_directx\d2d1.d" />
+   <File path="auroragraphics_directx\d3d11.d" />
+   <File path="auroragraphics_directx\d3dx11.d" />
+   <File path="auroragraphics_directx\dwrite.d" />
+   <File path="auroragraphics_directx\dxgi.d" />
+   <File path="auroragraphics_directx\package.d" />
+   <File path="auroragraphics_directx\wic.d" />
+  </Folder>
   <File path="source\app.d" />
   <File path="source\collections.d" />
   <File path="source\core.d" />

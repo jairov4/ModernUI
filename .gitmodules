@@ -1,0 +1,3 @@
+[submodule "ModernUI/auroragraphics_directx"]
+	path = ModernUI/auroragraphics_directx
+	url = https://github.com/auroragraphics/directx.git

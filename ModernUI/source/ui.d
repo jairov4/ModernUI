@@ -7,7 +7,10 @@ import modernui.collections;
 import std.algorithm.iteration;
 import std.container.array;
 
+import aurora.directx;
+
 pragma(lib, "gdi32.lib");
+pragma(lib, "D2d1.lib");
 
 abstract class RenderContext
 {
@@ -268,26 +271,42 @@ else
 	alias toTStringz = toStringz;
 }
 
+HRESULT D2D1CreateFactory(Factory)(D2D1_FACTORY_TYPE factoryType, /*out*/ Factory* factory)
+{
+	return D2D1CreateFactory(factoryType, mixin("&IID_"~Factory.stringof), null, cast(void**)factory);
+}
+
+extern(Windows)
+{
+	HRESULT D2D1CreateFactory(D2D1_FACTORY_TYPE factoryType, REFIID riid, void* factoryOptions, void **ppIFactory);
+}
+
 private class WindowRenderContext : RenderContext {
-	private HWND hWnd;
-	private PAINTSTRUCT ps;
-	private HDC dc;
+	private HWND myHwnd;
+	private PAINTSTRUCT myPs;
+	private HDC myDc;
+	private ID2D1Factory1 myFactory;
 
 	this(HWND hwnd)
 	{
-		this.hWnd = hwnd;
+		myHwnd = hwnd;
+		auto hr = D2D1CreateFactory!ID2D1Factory1(D2D1_FACTORY_TYPE.SINGLE_THREADED, &myFactory);
+		if(hr != S_OK)
+		{
+			throw new Error("Direct2D unable to start");
+		}
 	}
 
 	void begin()
 	{
-		dc = BeginPaint(hWnd, &ps);
+		myDc = BeginPaint(myHwnd, &myPs);
 		RECT r;
-		GetClientRect(hWnd, &r);
+		GetClientRect(myHwnd, &r);
 	}
 
 	void end()
 	{
-		EndPaint(hWnd, &ps);
+		EndPaint(myHwnd, &myPs);
 	}
 
 	override void drawText(double x, double y, string text)
@@ -295,10 +314,10 @@ private class WindowRenderContext : RenderContext {
 		HFONT font = CreateFont(80, 0, 0, 0, FW_EXTRABOLD, FALSE, FALSE,
 								FALSE, ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
 								ANTIALIASED_QUALITY, DEFAULT_PITCH | FF_DONTCARE, "Arial");
-		HGDIOBJ old = SelectObject(dc, cast(HGDIOBJ) font);
-		SetTextAlign(dc, TA_CENTER | TA_BASELINE);
-		TextOut(dc, cast(int)x, cast(int)y, text.toTStringz, cast(int)text.length);
-		DeleteObject(SelectObject(dc, old));
+		HGDIOBJ old = SelectObject(myDc, cast(HGDIOBJ)font);
+		SetTextAlign(myDc, TA_CENTER | TA_BASELINE);
+		TextOut(myDc, cast(int)x, cast(int)y, text.toTStringz, cast(int)text.length);
+		DeleteObject(SelectObject(myDc, old));
 	}
 }
 
@@ -446,7 +465,7 @@ class Window : ContentControl
 			case WM_NCCREATE:
 				auto pCreate = cast(CREATESTRUCT*)lParam;
 				auto wnd = cast(Window*)pCreate.lpCreateParams;
-				SetWindowLongPtr(hWnd, GWLP_USERDATA, cast(long)wnd);
+				SetWindowLongPtr(hWnd, GWLP_USERDATA, cast(size_t)wnd);
 				return true;
 
 			case WM_PAINT:
