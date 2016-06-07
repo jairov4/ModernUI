@@ -10,4 +10,4 @@ init:
 
 build_script:
   - cd c:\projects\modernui
-  - dmd -m64 -O -w -release -c -version=Unicode -vcolumns -of"Debug\ModernUI.obj" -Idirectx-d\src source\app.d source\collections.d source\core.d source\rx.d source\ui.d
+  - c:\projects\dmd2\windows\bin\dmd.exe -m64 -O -w -release -c -version=Unicode -vcolumns -of"Debug\ModernUI.obj" -Idirectx-d\src source\app.d source\collections.d source\core.d source\rx.d source\ui.d
