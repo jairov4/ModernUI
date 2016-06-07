@@ -11,6 +11,7 @@ import directx.d2d1;
 import directx.d2d1helper;
 import directx.dwrite_2;
 
+pragma(lib, "User32");
 pragma(lib, "gdi32");
 pragma(lib, "D2d1");
 pragma(lib, "Dwrite");

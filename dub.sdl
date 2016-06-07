@@ -8,6 +8,6 @@ dependency "modernui:directx-d" version="*"
 subPackage {
 	name "directx-d"
 	targetType "library"
-	sourcePaths "../directx-d/src"
-	importPaths "../directx-d/src"
+	sourcePaths "directx-d/src"
+	importPaths "directx-d/src"
 }

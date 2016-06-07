@@ -1,0 +1,3 @@
+[submodule "directx-d"]
+	path = directx-d
+	url = https://github.com/jairov4/directx-d.git
