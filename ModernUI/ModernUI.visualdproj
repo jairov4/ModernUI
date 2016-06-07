@@ -48,7 +48,7 @@
   <ignoreUnsupportedPragmas>0</ignoreUnsupportedPragmas>
   <allinst>0</allinst>
   <stackStomp>0</stackStomp>
-  <compiler>1</compiler>
+  <compiler>0</compiler>
   <otherDMD>0</otherDMD>
   <cccmd>$(CC) -c</cccmd>
   <ccTransOpt>1</ccTransOpt>
@@ -72,7 +72,7 @@
   <debuglevel>0</debuglevel>
   <debugids />
   <versionlevel>0</versionlevel>
-  <versionids>Unicode DX11_2</versionids>
+  <versionids>Unicode</versionids>
   <dump_source>0</dump_source>
   <mapverbosity>0</mapverbosity>
   <createImplib>0</createImplib>
@@ -116,7 +116,7 @@
   <verbose>0</verbose>
   <vtls>0</vtls>
   <vgc>0</vgc>
-  <symdebug>0</symdebug>
+  <symdebug>3</symdebug>
   <optimize>1</optimize>
   <cpu>0</cpu>
   <isX86_64>0</isX86_64>
@@ -150,7 +150,7 @@
   <ignoreUnsupportedPragmas>0</ignoreUnsupportedPragmas>
   <allinst>0</allinst>
   <stackStomp>0</stackStomp>
-  <compiler>1</compiler>
+  <compiler>0</compiler>
   <otherDMD>0</otherDMD>
   <cccmd>$(CC) -c</cccmd>
   <ccTransOpt>1</ccTransOpt>
@@ -174,7 +174,7 @@
   <debuglevel>0</debuglevel>
   <debugids />
   <versionlevel>0</versionlevel>
-  <versionids>Unicode DX11_2</versionids>
+  <versionids>Unicode</versionids>
   <dump_source>0</dump_source>
   <mapverbosity>0</mapverbosity>
   <createImplib>0</createImplib>
@@ -276,7 +276,7 @@
   <debuglevel>0</debuglevel>
   <debugids />
   <versionlevel>0</versionlevel>
-  <versionids>Unicode DX11_2</versionids>
+  <versionids>Unicode</versionids>
   <dump_source>0</dump_source>
   <mapverbosity>0</mapverbosity>
   <createImplib>0</createImplib>
@@ -320,7 +320,7 @@
   <verbose>1</verbose>
   <vtls>0</vtls>
   <vgc>0</vgc>
-  <symdebug>0</symdebug>
+  <symdebug>3</symdebug>
   <optimize>1</optimize>
   <cpu>0</cpu>
   <isX86_64>1</isX86_64>
@@ -378,7 +378,7 @@
   <debuglevel>0</debuglevel>
   <debugids />
   <versionlevel>0</versionlevel>
-  <versionids>Unicode DX11_2</versionids>
+  <versionids>Unicode</versionids>
   <dump_source>0</dump_source>
   <mapverbosity>0</mapverbosity>
   <createImplib>0</createImplib>
@@ -456,7 +456,7 @@
   <ignoreUnsupportedPragmas>0</ignoreUnsupportedPragmas>
   <allinst>0</allinst>
   <stackStomp>0</stackStomp>
-  <compiler>1</compiler>
+  <compiler>0</compiler>
   <otherDMD>0</otherDMD>
   <cccmd>$(CC) -c</cccmd>
   <ccTransOpt>1</ccTransOpt>
@@ -480,7 +480,7 @@
   <debuglevel>0</debuglevel>
   <debugids />
   <versionlevel>0</versionlevel>
-  <versionids>Unicode DX11_2</versionids>
+  <versionids>Unicode</versionids>
   <dump_source>0</dump_source>
   <mapverbosity>0</mapverbosity>
   <createImplib>0</createImplib>
@@ -582,7 +582,7 @@
   <debuglevel>0</debuglevel>
   <debugids />
   <versionlevel>0</versionlevel>
-  <versionids>Unicode DX11_2</versionids>
+  <versionids>Unicode</versionids>
   <dump_source>0</dump_source>
   <mapverbosity>0</mapverbosity>
   <createImplib>0</createImplib>
@@ -613,6 +613,73 @@
   <filesToClean>*.obj;*.cmd;*.build;*.json;*.dep</filesToClean>
  </Config>
  <Folder name="ModernUI">
+  <Folder name="directx">
+   <File path="..\directx-d\src\directx\com.d" />
+   <File path="..\directx-d\src\directx\d2d1.d" />
+   <File path="..\directx-d\src\directx\d2d1effectauthor.d" />
+   <File path="..\directx-d\src\directx\d2d1effectauthor_1.d" />
+   <File path="..\directx-d\src\directx\d2d1effects.d" />
+   <File path="..\directx-d\src\directx\d2d1effects_1.d" />
+   <File path="..\directx-d\src\directx\d2d1effects_2.d" />
+   <File path="..\directx-d\src\directx\d2d1helper.d" />
+   <File path="..\directx-d\src\directx\d2d1_1.d" />
+   <File path="..\directx-d\src\directx\d2d1_1helper.d" />
+   <File path="..\directx-d\src\directx\d2d1_2.d" />
+   <File path="..\directx-d\src\directx\d2d1_2helper.d" />
+   <File path="..\directx-d\src\directx\d2d1_3.d" />
+   <File path="..\directx-d\src\directx\d2d1_3helper.d" />
+   <File path="..\directx-d\src\directx\d2dbasetypes.d" />
+   <File path="..\directx-d\src\directx\d2derr.d" />
+   <File path="..\directx-d\src\directx\d3d10.d" />
+   <File path="..\directx-d\src\directx\d3d10effect.d" />
+   <File path="..\directx-d\src\directx\d3d10misc.d" />
+   <File path="..\directx-d\src\directx\d3d10sdklayers.d" />
+   <File path="..\directx-d\src\directx\d3d10shader.d" />
+   <File path="..\directx-d\src\directx\d3d10_1.d" />
+   <File path="..\directx-d\src\directx\d3d10_1shader.d" />
+   <File path="..\directx-d\src\directx\d3d11.d" />
+   <File path="..\directx-d\src\directx\d3d11on12.d" />
+   <File path="..\directx-d\src\directx\d3d11sdklayers.d" />
+   <File path="..\directx-d\src\directx\d3d11shader.d" />
+   <File path="..\directx-d\src\directx\d3d11shadertracing.d" />
+   <File path="..\directx-d\src\directx\d3d11_1.d" />
+   <File path="..\directx-d\src\directx\d3d11_2.d" />
+   <File path="..\directx-d\src\directx\d3d11_3.d" />
+   <File path="..\directx-d\src\directx\d3d11_4.d" />
+   <File path="..\directx-d\src\directx\d3d12.d" />
+   <File path="..\directx-d\src\directx\d3d12sdklayers.d" />
+   <File path="..\directx-d\src\directx\d3d12shader.d" />
+   <File path="..\directx-d\src\directx\d3d7.d" />
+   <File path="..\directx-d\src\directx\d3d8.d" />
+   <File path="..\directx-d\src\directx\d3d9.d" />
+   <File path="..\directx-d\src\directx\d3dcommon.d" />
+   <File path="..\directx-d\src\directx\d3dcompiler.d" />
+   <File path="..\directx-d\src\directx\d3dukmdt.d" />
+   <File path="..\directx-d\src\directx\d3dx11.d" />
+   <File path="..\directx-d\src\directx\d3dx11async.d" />
+   <File path="..\directx-d\src\directx\d3dx11core.d" />
+   <File path="..\directx-d\src\directx\d3dx11tex.d" />
+   <File path="..\directx-d\src\directx\dcommon.d" />
+   <File path="..\directx-d\src\directx\dwrite.d" />
+   <File path="..\directx-d\src\directx\dwrite_1.d" />
+   <File path="..\directx-d\src\directx\dwrite_2.d" />
+   <File path="..\directx-d\src\directx\dwrite_3.d" />
+   <File path="..\directx-d\src\directx\dxgi.d" />
+   <File path="..\directx-d\src\directx\dxgi1_2.d" />
+   <File path="..\directx-d\src\directx\dxgi1_3.d" />
+   <File path="..\directx-d\src\directx\dxgi1_4.d" />
+   <File path="..\directx-d\src\directx\dxgi1_5.d" />
+   <File path="..\directx-d\src\directx\dxgiddi.d" />
+   <File path="..\directx-d\src\directx\dxgidebug.d" />
+   <File path="..\directx-d\src\directx\dxgiformat.d" />
+   <File path="..\directx-d\src\directx\dxgimessages.d" />
+   <File path="..\directx-d\src\directx\dxgitype.d" />
+   <File path="..\directx-d\src\directx\win32.d" />
+   <File path="..\directx-d\src\directx\wincodec.d" />
+   <File path="..\directx-d\src\directx\x3daudio.d" />
+   <File path="..\directx-d\src\directx\xaudio2.d" />
+   <File path="..\directx-d\src\directx\xinput.d" />
+  </Folder>
   <File path="source\app.d" />
   <File path="source\collections.d" />
   <File path="source\core.d" />

@@ -7,6 +7,11 @@ import modernui.collections;
 import std.algorithm.iteration;
 import std.container.array;
 
+import directx.d2d1;
+import directx.d2d1helper;
+import directx.dwrite_2;
+
+pragma(lib, "gdi32");
 pragma(lib, "D2d1");
 pragma(lib, "Dwrite");
 
@@ -291,12 +296,14 @@ private class WindowRenderContext : RenderContext {
 	{
 		myHwnd = hwnd;
 
-		ID2D1Factory1 d2dFactory;
+		ID2D1Factory d2dFactory;
 		scope(exit) d2dFactory.Release();
-		auto hr = D2D1CreateFactory!ID2D1Factory1(D2D1_FACTORY_TYPE.SINGLE_THREADED, &d2dFactory);
+		auto hr = D2D1CreateFactory!ID2D1Factory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &d2dFactory);
 		if(hr != S_OK) throw new Error("Direct2D unable to start");
 
-		auto d2drtProperties = D2D1_RENDER_TARGET_PROPERTIES.init;
+		auto d2drtProperties = D2D1.RenderTargetProperties();
+		d2drtProperties.type = D2D1_RENDER_TARGET_TYPE_DEFAULT;
+
 		auto hwndrtProperties = D2D1_HWND_RENDER_TARGET_PROPERTIES.init;
 		hwndrtProperties.hwnd = myHwnd;
 
@@ -309,9 +316,8 @@ private class WindowRenderContext : RenderContext {
 
 		IDWriteFactory1 dwriteFactory;
 		scope(exit) dwriteFactory.Release();
-		hr = DWriteCreateFactory!IDWriteFactory1(DWRITE_FACTORY_TYPE.ISOLATED, &dwriteFactory);
+		hr = DWriteCreateFactory!IDWriteFactory1(DWRITE_FACTORY_TYPE_ISOLATED, &dwriteFactory);
 		if(hr != S_OK) throw new Error("Direct2D unable to create render target");
-
 	}
 
 	~this()
@@ -319,7 +325,7 @@ private class WindowRenderContext : RenderContext {
 		if(myRenderTarget !is null) myRenderTarget.Release();
 	}
 
-	void resize(Size size)
+	void resize()
 	{
 		RECT rc;
 		GetClientRect(myHwnd, &rc);
@@ -411,8 +417,6 @@ class Window : ContentControl
 		{
 			throw new Error("Could not create window");
 		}
-
-		myRenderContext = new WindowRenderContext(hWnd);
 	}
 
 	this()
@@ -486,33 +490,41 @@ class Window : ContentControl
 	extern(Windows)
 	static LRESULT WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) nothrow
 	{
-		if(message == WM_NCCREATE)
+		try
 		{
-			auto pCreate = cast(CREATESTRUCT*)lParam;
-			auto wnd = cast(Window*)pCreate.lpCreateParams;
-			SetWindowLongPtr(hWnd, GWLP_USERDATA, cast(size_t)wnd);
-			return true;
-		}
+			if(message == WM_NCCREATE)
+			{
+				auto pCreate = cast(CREATESTRUCT*)lParam;
+				auto wnd = cast(Window*)pCreate.lpCreateParams;
+				SetWindowLongPtr(hWnd, GWLP_USERDATA, cast(size_t)wnd);
+				wnd.myRenderContext = new WindowRenderContext(hWnd);
+				return true;
+			}
 
-		auto self = cast(Window*)GetWindowLongPtr(hWnd, GWLP_USERDATA);
-
-		switch (message)
-		{
-			case WM_PAINT:
-				try{
+			auto self = cast(Window*)GetWindowLongPtr(hWnd, GWLP_USERDATA);
+			switch (message)
+			{
+				case WM_PAINT:
 					self.myRenderContext.begin;
 					scope(exit) self.myRenderContext.end;
 					self.render(self.myRenderContext);
-				} catch {
-				}
-				break;
+					break;
 
-			case WM_DESTROY:
-				PostQuitMessage(0);
-				break;
+				case WM_DESTROY:
+					PostQuitMessage(0);
+					break;
 
-			default:
-				return DefWindowProcA(hWnd, message, wParam, lParam);
+				case WM_SIZE:
+					self.myRenderContext.resize;
+					break;
+
+				default:
+					return DefWindowProcA(hWnd, message, wParam, lParam);
+			}
+		}
+		catch(Throwable t)
+		{
+			PostQuitMessage(240);
 		}
 
 		return 0;

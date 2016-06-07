@@ -3,3 +3,10 @@ description "A minimal D application."
 copyright "Copyright © 2016, JairoAndres"
 authors "JairoAndres"
 versions "Unicode"
+dependency "modernui:directx-d" version="*"
+subPackage {
+	name "directx-d"
+	targetType "library"
+	sourcePaths "../directx-d/src"
+	importPaths "../directx-d/src"
+}
