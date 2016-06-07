@@ -613,17 +613,6 @@
   <filesToClean>*.obj;*.cmd;*.build;*.json;*.dep</filesToClean>
  </Config>
  <Folder name="ModernUI">
-  <Folder name="aurora">
-   <File path="auroragraphics_directx\com.d" />
-   <File path="auroragraphics_directx\config.d" />
-   <File path="auroragraphics_directx\d2d1.d" />
-   <File path="auroragraphics_directx\d3d11.d" />
-   <File path="auroragraphics_directx\d3dx11.d" />
-   <File path="auroragraphics_directx\dwrite.d" />
-   <File path="auroragraphics_directx\dxgi.d" />
-   <File path="auroragraphics_directx\package.d" />
-   <File path="auroragraphics_directx\wic.d" />
-  </Folder>
   <File path="source\app.d" />
   <File path="source\collections.d" />
   <File path="source\core.d" />
