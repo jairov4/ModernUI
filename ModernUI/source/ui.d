@@ -7,10 +7,8 @@ import modernui.collections;
 import std.algorithm.iteration;
 import std.container.array;
 
-import aurora.directx;
-
-pragma(lib, "gdi32.lib");
-pragma(lib, "D2d1.lib");
+pragma(lib, "D2d1");
+pragma(lib, "Dwrite");
 
 abstract class RenderContext
 {
@@ -271,53 +269,78 @@ else
 	alias toTStringz = toStringz;
 }
 
-HRESULT D2D1CreateFactory(Factory)(D2D1_FACTORY_TYPE factoryType, /*out*/ Factory* factory)
+extern(Windows) HRESULT D2D1CreateFactory(D2D1_FACTORY_TYPE factoryType, REFIID riid, void* factoryOptions, IUnknown* ppIFactory);
+
+extern(Windows) HRESULT DWriteCreateFactory(DWRITE_FACTORY_TYPE FactoryType, REFIID IID, IUnknown* ppFactory);
+
+HRESULT D2D1CreateFactory(Factory : ID2D1Factory)(D2D1_FACTORY_TYPE factoryType, /*out*/ Factory* factory)
 {
-	return D2D1CreateFactory(factoryType, mixin("&IID_"~Factory.stringof), null, cast(void**)factory);
+	return D2D1CreateFactory(factoryType, mixin("&IID_"~Factory.stringof), null, cast(IUnknown*)factory);
 }
 
-extern(Windows)
+HRESULT DWriteCreateFactory(Factory : IDWriteFactory)(DWRITE_FACTORY_TYPE factoryType, /*out*/ Factory* factory)
 {
-	HRESULT D2D1CreateFactory(D2D1_FACTORY_TYPE factoryType, REFIID riid, void* factoryOptions, void **ppIFactory);
+	return DWriteCreateFactory(factoryType, mixin("&IID_"~Factory.stringof), cast(IUnknown*)factory);
 }
 
 private class WindowRenderContext : RenderContext {
 	private HWND myHwnd;
-	private PAINTSTRUCT myPs;
-	private HDC myDc;
-	private ID2D1Factory1 myFactory;
+	private ID2D1HwndRenderTarget myRenderTarget;
 
 	this(HWND hwnd)
 	{
 		myHwnd = hwnd;
-		auto hr = D2D1CreateFactory!ID2D1Factory1(D2D1_FACTORY_TYPE.SINGLE_THREADED, &myFactory);
-		if(hr != S_OK)
-		{
-			throw new Error("Direct2D unable to start");
-		}
+
+		ID2D1Factory1 d2dFactory;
+		scope(exit) d2dFactory.Release();
+		auto hr = D2D1CreateFactory!ID2D1Factory1(D2D1_FACTORY_TYPE.SINGLE_THREADED, &d2dFactory);
+		if(hr != S_OK) throw new Error("Direct2D unable to start");
+
+		auto d2drtProperties = D2D1_RENDER_TARGET_PROPERTIES.init;
+		auto hwndrtProperties = D2D1_HWND_RENDER_TARGET_PROPERTIES.init;
+		hwndrtProperties.hwnd = myHwnd;
+
+		RECT rc;
+		GetClientRect(myHwnd, &rc);
+		hwndrtProperties.pixelSize = D2D_SIZE_U(rc.right - rc.left, rc.bottom - rc.top);
+
+		hr = d2dFactory.CreateHwndRenderTarget(&d2drtProperties, &hwndrtProperties, &myRenderTarget);
+		if(hr != S_OK) throw new Error("Direct2D unable to create render target");
+
+		IDWriteFactory1 dwriteFactory;
+		scope(exit) dwriteFactory.Release();
+		hr = DWriteCreateFactory!IDWriteFactory1(DWRITE_FACTORY_TYPE.ISOLATED, &dwriteFactory);
+		if(hr != S_OK) throw new Error("Direct2D unable to create render target");
+
+	}
+
+	~this()
+	{
+		if(myRenderTarget !is null) myRenderTarget.Release();
+	}
+
+	void resize(Size size)
+	{
+		RECT rc;
+		GetClientRect(myHwnd, &rc);
+		auto newSize = D2D1_SIZE_U(rc.right - rc.left, rc.bottom - rc.top);
+		auto hr = myRenderTarget.Resize(&newSize);
+		if(hr != S_OK) throw new Error("Direct2D unable to resize render target");
 	}
 
 	void begin()
 	{
-		myDc = BeginPaint(myHwnd, &myPs);
-		RECT r;
-		GetClientRect(myHwnd, &r);
+		myRenderTarget.BeginDraw();
 	}
 
 	void end()
 	{
-		EndPaint(myHwnd, &myPs);
+		myRenderTarget.EndDraw();
 	}
 
 	override void drawText(double x, double y, string text)
 	{
-		HFONT font = CreateFont(80, 0, 0, 0, FW_EXTRABOLD, FALSE, FALSE,
-								FALSE, ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
-								ANTIALIASED_QUALITY, DEFAULT_PITCH | FF_DONTCARE, "Arial");
-		HGDIOBJ old = SelectObject(myDc, cast(HGDIOBJ)font);
-		SetTextAlign(myDc, TA_CENTER | TA_BASELINE);
-		TextOut(myDc, cast(int)x, cast(int)y, text.toTStringz, cast(int)text.length);
-		DeleteObject(SelectObject(myDc, old));
+		
 	}
 }
 
@@ -336,6 +359,7 @@ class Window : ContentControl
 
 	private DescendantInfo[Visual] descendants;
 	private Window selfReference;
+	private WindowRenderContext myRenderContext;
 
 	private HINSTANCE hInstance = null;
 	private HWND hWnd = null;
@@ -368,7 +392,7 @@ class Window : ContentControl
 		hWnd = CreateWindowEx(
 					0, 
 					className.toTStringz,  // window class name
-					"test".toTStringz,    // window caption
+					"test".toTStringz,     // window caption
 					WS_THICKFRAME   |
 					WS_MAXIMIZEBOX  |
 					WS_MINIMIZEBOX  |
@@ -387,6 +411,8 @@ class Window : ContentControl
 		{
 			throw new Error("Could not create window");
 		}
+
+		myRenderContext = new WindowRenderContext(hWnd);
 	}
 
 	this()
@@ -460,21 +486,23 @@ class Window : ContentControl
 	extern(Windows)
 	static LRESULT WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) nothrow
 	{
+		if(message == WM_NCCREATE)
+		{
+			auto pCreate = cast(CREATESTRUCT*)lParam;
+			auto wnd = cast(Window*)pCreate.lpCreateParams;
+			SetWindowLongPtr(hWnd, GWLP_USERDATA, cast(size_t)wnd);
+			return true;
+		}
+
+		auto self = cast(Window*)GetWindowLongPtr(hWnd, GWLP_USERDATA);
+
 		switch (message)
 		{
-			case WM_NCCREATE:
-				auto pCreate = cast(CREATESTRUCT*)lParam;
-				auto wnd = cast(Window*)pCreate.lpCreateParams;
-				SetWindowLongPtr(hWnd, GWLP_USERDATA, cast(size_t)wnd);
-				return true;
-
 			case WM_PAINT:
-				auto wnd = cast(Window*)GetWindowLongPtr(hWnd, GWLP_USERDATA);
 				try{
-					auto rc = new WindowRenderContext(hWnd);
-					rc.begin;
-					wnd.render(rc);
-					scope(exit) rc.end;
+					self.myRenderContext.begin;
+					scope(exit) self.myRenderContext.end;
+					self.render(self.myRenderContext);
 				} catch {
 				}
 				break;
