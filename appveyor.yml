@@ -6,6 +6,7 @@ init:
         7z x dmd2.7z > $null
         Set-Item -path env:DMD -value c:\projects\dmd2\windows\bin\dmd.exe
         c:\projects\dmd2\windows\bin\dmd.exe --version
+        cd c:\projects\modernui
 
 build_script:
   - cd c:\projects\modernui
