@@ -26,9 +26,25 @@ How to use
     {
     	static this() { registerClass!(typeof(this)); }
 
-        mixin DefineDependencyPropertyReadOnly!(double, "property1");
-    }
+        // Define properties that can be data bound and inspected in runtime
+        mixin DefineDependencyProperty!(double, "property1");
+        mixin DefineDependencyPropertyReadOnly!(double, "propertyro");
 
+        private Button btn;
+
+        this()
+        {
+            btn = new Button;
+            btn.content = "Click me";
+
+            // Click is an observable so we can define its behavior declaratively here
+            // take a look of http://reactiveui.net/
+            btn.click.then!ClickEvent((ev) 
+            {
+                btn.content = "You made click";
+            });
+        }
+    }
 
     auto wnd = new Window;
     auto ctl = new MyUserControl;
@@ -49,6 +65,7 @@ Controls:
 Features to add in 0.0.5 will be:
 
 - Panel: Added panel class. It will allow complex layouts using the new classes: Grid, DockPanel, StackPanel.
+- Added controls: Button, TextBox
 
 Features to add in 0.0.6 will be:
 
