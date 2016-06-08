@@ -82,4 +82,5 @@ build_script:
   - echo source\core.d >>%RSP%
   - echo source\rx.d >>%RSP%
   - echo source\ui.d >>%RSP%
-  - c:\projects\dmd2\windows\bin\dmd.exe -m64 -O -w -release -version=Unicode -vcolumns @%RSP%
+  - set LINKCMD64=C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\bin\amd64\link.exe
+  - c:\projects\dmd2\windows\bin\dmd.exe -m64 -O -w -release -version=Unicode -vcolumns -odRelease @%RSP%
