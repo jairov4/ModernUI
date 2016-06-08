@@ -1,6 +1,8 @@
 ModernUI
 ========
 
+[![Build status](https://ci.appveyor.com/api/projects/status/xwtq3jpfa1la0fnv?svg=true)](https://ci.appveyor.com/project/jairov4/modernui)
+
 The most powerful UI engine inspired in XAML and ReactiveUI. 
 Is designed to write flexible UI/UX for large and production enterprise-level applications.
 
