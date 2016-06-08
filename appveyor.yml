@@ -83,4 +83,5 @@ build_script:
   - echo source\rx.d >>%RSP%
   - echo source\ui.d >>%RSP%
   - set LINKCMD64=C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\bin\amd64\link.exe
-  - c:\projects\dmd2\windows\bin\dmd.exe -m64 -O -w -release -version=Unicode -vcolumns -odRelease @%RSP%
+  - c:\projects\dmd2\windows\bin\dmd.exe -m64 -O -w -release -version=Unicode -I..\directx-d\src -vcolumns -odRelease @%RSP%
+  - if ERRORLEVEL 1 echo "Error compiling the project"
