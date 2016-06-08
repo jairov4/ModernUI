@@ -1,87 +1,13 @@
 os: Visual Studio 2015
 init:
-  - ps: |
-        cd c:\projects
-        Start-FileDownload 'http://nightlies.dlang.org/dmd-nightly/dmd.master.windows.7z' -FileName 'dmd2.7z'
-        7z x dmd2.7z > $null
-        Set-Item -path env:DMD -value c:\projects\dmd2\windows\bin\dmd.exe
-        c:\projects\dmd2\windows\bin\dmd.exe --version
-        cd c:\projects\modernui
+  - ps: Start-FileDownload 'http://downloads.dlang.org/releases/2.x/2.071.0/dmd.2.071.0.windows.zip' -FileName 'dmd2.7z'
+  - 7z x dmd2.7z > nul
+  - set PATH=%CD%\dmd2\windows\bin;%CD%\dmd2\windows\bin64;%PATH%
+  - dmd.exe --version
+  - cinst dub
 
 build_script:
-  - SET RSP=ModernUI.build.rsp
   - cd c:\projects\modernui
   - git submodule update --init --recursive
-  - echo directx-d\src\directx\com.d >%RSP%
-  - echo directx-d\src\directx\d2d1.d >>%RSP%
-  - echo directx-d\src\directx\d2d1effectauthor.d >>%RSP%
-  - echo directx-d\src\directx\d2d1effectauthor_1.d >>%RSP%
-  - echo directx-d\src\directx\d2d1effects.d >>%RSP%
-  - echo directx-d\src\directx\d2d1effects_1.d >>%RSP%
-  - echo directx-d\src\directx\d2d1effects_2.d >>%RSP%
-  - echo directx-d\src\directx\d2d1helper.d >>%RSP%
-  - echo directx-d\src\directx\d2d1_1.d >>%RSP%
-  - echo directx-d\src\directx\d2d1_1helper.d >>%RSP%
-  - echo directx-d\src\directx\d2d1_2.d >>%RSP%
-  - echo directx-d\src\directx\d2d1_2helper.d >>%RSP%
-  - echo directx-d\src\directx\d2d1_3.d >>%RSP%
-  - echo directx-d\src\directx\d2d1_3helper.d >>%RSP%
-  - echo directx-d\src\directx\d2dbasetypes.d >>%RSP%
-  - echo directx-d\src\directx\d2derr.d >>%RSP%
-  - echo directx-d\src\directx\d3d10.d >>%RSP%
-  - echo directx-d\src\directx\d3d10effect.d >>%RSP%
-  - echo directx-d\src\directx\d3d10misc.d >>%RSP%
-  - echo directx-d\src\directx\d3d10sdklayers.d >>%RSP%
-  - echo directx-d\src\directx\d3d10shader.d >>%RSP%
-  - echo directx-d\src\directx\d3d10_1.d >>%RSP%
-  - echo directx-d\src\directx\d3d10_1shader.d >>%RSP%
-  - echo directx-d\src\directx\d3d11.d >>%RSP%
-  - echo directx-d\src\directx\d3d11on12.d >>%RSP%
-  - echo directx-d\src\directx\d3d11sdklayers.d >>%RSP%
-  - echo directx-d\src\directx\d3d11shader.d >>%RSP%
-  - echo directx-d\src\directx\d3d11shadertracing.d >>%RSP%
-  - echo directx-d\src\directx\d3d11_1.d >>%RSP%
-  - echo directx-d\src\directx\d3d11_2.d >>%RSP%
-  - echo directx-d\src\directx\d3d11_3.d >>%RSP%
-  - echo directx-d\src\directx\d3d11_4.d >>%RSP%
-  - echo directx-d\src\directx\d3d12.d >>%RSP%
-  - echo directx-d\src\directx\d3d12sdklayers.d >>%RSP%
-  - echo directx-d\src\directx\d3d12shader.d >>%RSP%
-  - echo directx-d\src\directx\d3d7.d >>%RSP%
-  - echo directx-d\src\directx\d3d8.d >>%RSP%
-  - echo directx-d\src\directx\d3d9.d >>%RSP%
-  - echo directx-d\src\directx\d3dcommon.d >>%RSP%
-  - echo directx-d\src\directx\d3dcompiler.d >>%RSP%
-  - echo directx-d\src\directx\d3dukmdt.d >>%RSP%
-  - echo directx-d\src\directx\d3dx11.d >>%RSP%
-  - echo directx-d\src\directx\d3dx11async.d >>%RSP%
-  - echo directx-d\src\directx\d3dx11core.d >>%RSP%
-  - echo directx-d\src\directx\d3dx11tex.d >>%RSP%
-  - echo directx-d\src\directx\dcommon.d >>%RSP%
-  - echo directx-d\src\directx\dwrite.d >>%RSP%
-  - echo directx-d\src\directx\dwrite_1.d >>%RSP%
-  - echo directx-d\src\directx\dwrite_2.d >>%RSP%
-  - echo directx-d\src\directx\dwrite_3.d >>%RSP%
-  - echo directx-d\src\directx\dxgi.d >>%RSP%
-  - echo directx-d\src\directx\dxgi1_2.d >>%RSP%
-  - echo directx-d\src\directx\dxgi1_3.d >>%RSP%
-  - echo directx-d\src\directx\dxgi1_4.d >>%RSP%
-  - echo directx-d\src\directx\dxgi1_5.d >>%RSP%
-  - echo directx-d\src\directx\dxgiddi.d >>%RSP%
-  - echo directx-d\src\directx\dxgidebug.d >>%RSP%
-  - echo directx-d\src\directx\dxgiformat.d >>%RSP%
-  - echo directx-d\src\directx\dxgimessages.d >>%RSP%
-  - echo directx-d\src\directx\dxgitype.d >>%RSP%
-  - echo directx-d\src\directx\win32.d >>%RSP%
-  - echo directx-d\src\directx\wincodec.d >>%RSP%
-  - echo directx-d\src\directx\x3daudio.d >>%RSP%
-  - echo directx-d\src\directx\xaudio2.d >>%RSP%
-  - echo directx-d\src\directx\xinput.d >>%RSP%
-  - echo source\app.d >>%RSP%
-  - echo source\collections.d >>%RSP%
-  - echo source\core.d >>%RSP%
-  - echo source\rx.d >>%RSP%
-  - echo source\ui.d >>%RSP%
-  - set LINKCMD64=C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\bin\amd64\link.exe
-  - c:\projects\dmd2\windows\bin\dmd.exe -m64 -O -w -release -version=Unicode -I..\directx-d\src -vcolumns -odRelease @%RSP%
-  - if ERRORLEVEL 1 echo "Error compiling the project"
+  - call "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" amd64
+  - dub test --arch=x86_64
