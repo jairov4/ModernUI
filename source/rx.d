@@ -296,7 +296,7 @@ Observable!T merge(T)(Observable!T[] inputs ...)
 	auto output = new Subject!T;
 
 	// Intialize a copy of the observables
-	auto alive = inputs.length;
+	auto alive_cnt = inputs.length;
 	foreach(input ; inputs)
 	{
 		// We subscribe and forward next() and error() events
@@ -307,8 +307,8 @@ Observable!T merge(T)(Observable!T[] inputs ...)
 			output.error(e); 
 		}, 
 		{
-			// On complete(), we test if this is the last observable alive			
-			if(alive-- == 0)
+			// On complete(), we test if this is the last observable alive
+			if(--alive_cnt == 0)
 			{
 				output.complete();
 			}
