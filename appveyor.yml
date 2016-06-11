@@ -15,4 +15,4 @@ build_script:
   - dub test --arch=x86_64
 
 after_test:
-  - codecov
+  - python -m codecov
