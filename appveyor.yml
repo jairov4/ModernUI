@@ -6,7 +6,8 @@ install:
   - set PATH=%CD%\dmd2\windows\bin;%CD%\dmd2\windows\bin64;%PATH%
   - dmd.exe --version
   - cinst dub
-  - pip install --user codecov
+  - cinst python
+  - python -m pip install --user codecov
 
 build_script:
   - git submodule update --init --recursive
