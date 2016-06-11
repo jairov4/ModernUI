@@ -7,7 +7,7 @@ install:
   - dmd.exe --version
   - cinst dub
   - cinst python2
-  - python2 -m pip install --user codecov
+  - python -m pip install --user codecov
 
 build_script:
   - git submodule update --init --recursive
