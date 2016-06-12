@@ -6,13 +6,11 @@ install:
   - set PATH=%CD%\dmd2\windows\bin;%CD%\dmd2\windows\bin64;%PATH%
   - dmd.exe --version
   - cinst dub
-  - cinst python2
-  - python2 -m pip install --user codecov
 
 build_script:
   - git submodule update --init --recursive
   - call "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" amd64
-  - dub test --arch=x86_64
+  - dub test --coverage --arch=x86_64
 
 after_test:
-  - codecov
+  - dub run coverd
