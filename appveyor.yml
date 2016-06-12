@@ -13,4 +13,5 @@ build_script:
   - dub test --coverage --arch=x86_64
 
 after_test:
+  - dub fetch coverd
   - dub run coverd
