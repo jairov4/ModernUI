@@ -15,3 +15,7 @@ build_script:
 after_test:
   - dub fetch coverd
   - dub run coverd
+
+artifacts:
+  - path: coverage.html
+    name: Coverage Results
