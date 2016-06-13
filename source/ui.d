@@ -16,9 +16,44 @@ pragma(lib, "gdi32");
 pragma(lib, "D2d1");
 pragma(lib, "Dwrite");
 
+abstract class TextFormat
+{
+}
+
+abstract class TextLayout
+{
+	abstract @property void text(string value);
+	abstract @property string text();
+	abstract @property Size layoutBox();
+	abstract @property void layoutBox(Size box);
+	abstract @property Size layoutSize();
+	abstract @property Size measureSize();
+}
+
+enum FontStretch
+{
+	ultraCondensed,
+	extraCondensed,
+	condensed,
+	semiCondensed,
+	normal,
+	semiExpanded,
+	expanded,
+	extraExpanded,
+	ultraExpanded
+}
+
+enum FontStyle
+{
+	normal, italic, oblique
+}
+
 abstract class RenderContext
 {
-	abstract void drawText(double x, double y, string text);
+	abstract void clear(Color color);
+	abstract void drawText(double x, double y, TextLayout textLayout);
+	abstract TextFormat createTextFormat(string fontFamily, float size, FontStyle style=FontStyle.normal, int weight=400, FontStretch stretch=FontStretch.normal);
+	abstract TextLayout createTextLayout(TextFormat format);
 }
 
 struct Size
@@ -53,6 +88,12 @@ struct Rect
 {
 	Point location;
 	Size size;
+}
+
+struct Color {
+	float r;
+	float g;
+	float b;
 }
 
 abstract class Visual : DependencyObject
@@ -221,7 +262,7 @@ class TextElement : UIElement
 
 	protected override void render(RenderContext context)
 	{
-		context.drawText(20, 20, "Hola mundo");
+		// TODO
 	}
 
 	this()
@@ -292,6 +333,7 @@ HRESULT DWriteCreateFactory(Factory : IDWriteFactory)(DWRITE_FACTORY_TYPE factor
 private class WindowRenderContext : RenderContext {
 	private HWND myHwnd;
 	private ID2D1HwndRenderTarget myRenderTarget;
+	private IDWriteFactory1 myDirectWriteFactory;
 
 	this(HWND hwnd)
 	{
@@ -315,15 +357,14 @@ private class WindowRenderContext : RenderContext {
 		hr = d2dFactory.CreateHwndRenderTarget(&d2drtProperties, &hwndrtProperties, &myRenderTarget);
 		if(hr != S_OK) throw new Error("Direct2D unable to create render target");
 
-		IDWriteFactory1 dwriteFactory;
-		scope(exit) dwriteFactory.Release();
-		hr = DWriteCreateFactory!IDWriteFactory1(DWRITE_FACTORY_TYPE_ISOLATED, &dwriteFactory);
+		hr = DWriteCreateFactory!IDWriteFactory1(DWRITE_FACTORY_TYPE_ISOLATED, &myDirectWriteFactory);
 		if(hr != S_OK) throw new Error("Direct2D unable to create render target");
 	}
 
 	~this()
 	{
 		if(myRenderTarget !is null) myRenderTarget.Release();
+		if(myDirectWriteFactory !is null) myDirectWriteFactory.Release();
 	}
 
 	void resize()
@@ -345,9 +386,31 @@ private class WindowRenderContext : RenderContext {
 		myRenderTarget.EndDraw();
 	}
 
-	override void drawText(double x, double y, string text)
+	override void clear(Color color)
 	{
-		
+		auto col = D2D1.ColorF(color.r, color.g, color.b);
+		myRenderTarget.Clear(&col.color);
+	}
+
+	override TextFormat createTextFormat(string fontFamily, float size, FontStyle style=FontStyle.normal, int weight=400, FontStretch stretch=FontStretch.normal)
+	{
+		IDWriteTextFormat format;
+		auto hr = myDirectWriteFactory.CreateTextFormat("Gabriola", null, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, 72.0f, "en-us", &format);
+		if(hr != S_OK) throw new Error("DirectWrite unable to create text format");
+		format.Release();
+		// TODO
+		return null;
+	}
+
+	override TextLayout createTextLayout(TextFormat format)
+	{
+		// TODO
+		return null;
+	}
+
+	override void drawText(double x, double y, TextLayout textLayout)
+	{
+		// TODO
 	}
 }
 
@@ -485,6 +548,7 @@ class Window : ContentControl
 
 	protected override void render(RenderContext rc)
 	{
+		rc.clear(Color(1.0,1.0,1.0));
 		foreach(child; visualChildren) child.render(rc);
 	}
 
