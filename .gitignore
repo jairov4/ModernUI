@@ -7,3 +7,7 @@ docs.json
 Debug/
 Release/
 Test/
+*.sln
+*.lst
+*.exe
+*.lib
