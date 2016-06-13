@@ -48,12 +48,64 @@ enum FontStyle
 	normal, italic, oblique
 }
 
+abstract class Image
+{
+}
+
+abstract class ImageBrush
+{
+}
+
+struct SolidColorBrush
+{
+	private Color myColor;
+
+	@property Color color() { return myColor; }
+	@property void color(Color value) { myColor = value; }
+}
+
+struct GradientColorStop
+{
+	private float myPosition;
+	private Color myColor;
+
+	@property float position() { return myPosition; }
+	@property void position(float value) { myPosition = value; }
+
+	@property Color color() { return myColor; }
+	@property void color(Color value) { myColor = value; }
+
+	this(float position, Color color)
+	{
+		myPosition = position;
+		myColor = color;
+	}
+}
+
+class GradientColorBrush
+{
+	private float myOrientation;
+	private GradientColorStop[] myStops;
+
+	@property float orientation() { return myOrientation; }
+	@property void orientation(float value) { myOrientation = value; }
+
+	@property const(GradientColorStop[]) stops() { return myStops; }
+
+	this(float orientation, GradientColorStop[] stops)
+	{
+		myOrientation = orientation;
+		myStops = stops;
+	}
+}
+
 abstract class RenderContext
 {
 	abstract void clear(Color color);
 	abstract void drawText(double x, double y, TextLayout textLayout);
 	abstract TextFormat createTextFormat(string fontFamily, float size, FontStyle style=FontStyle.normal, int weight=400, FontStretch stretch=FontStretch.normal);
-	abstract TextLayout createTextLayout(TextFormat format);
+	abstract TextLayout createTextLayout(TextFormat format, string text="", Size box=Size(0.0, 0.0));
+	abstract ImageBrush createImageBrush(Image image);
 }
 
 struct Size
@@ -402,7 +454,13 @@ private class WindowRenderContext : RenderContext {
 		return null;
 	}
 
-	override TextLayout createTextLayout(TextFormat format)
+	override TextLayout createTextLayout(TextFormat format, string text="", Size box=Size(0.0, 0.0))
+	{
+		// TODO
+		return null;
+	}
+
+	override ImageBrush createImageBrush(Image image)
 	{
 		// TODO
 		return null;
