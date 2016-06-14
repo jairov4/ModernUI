@@ -1,152 +1,13 @@
-module modernui.ui;
+module modernui.ui.control;
 
 import modernui.core;
 import modernui.rx;
 import modernui.collections;
+import modernui.ui.core;
+import modernui.ui.render;
 
 import std.algorithm.iteration;
 import std.container.array;
-
-import directx.d2d1;
-import directx.d2d1helper;
-import directx.dwrite_2;
-
-pragma(lib, "User32");
-pragma(lib, "gdi32");
-pragma(lib, "D2d1");
-pragma(lib, "Dwrite");
-
-abstract class TextFormat
-{
-}
-
-abstract class TextLayout
-{
-	abstract @property void text(string value);
-	abstract @property string text();
-	abstract @property Size layoutBox();
-	abstract @property void layoutBox(Size box);
-	abstract @property Size layoutSize();
-	abstract @property Size measureSize();
-}
-
-enum FontStretch
-{
-	ultraCondensed,
-	extraCondensed,
-	condensed,
-	semiCondensed,
-	normal,
-	semiExpanded,
-	expanded,
-	extraExpanded,
-	ultraExpanded
-}
-
-enum FontStyle
-{
-	normal, italic, oblique
-}
-
-abstract class Image
-{
-}
-
-abstract class ImageBrush
-{
-}
-
-struct SolidColorBrush
-{
-	private Color myColor;
-
-	@property Color color() { return myColor; }
-	@property void color(Color value) { myColor = value; }
-}
-
-struct GradientColorStop
-{
-	private float myPosition;
-	private Color myColor;
-
-	@property float position() { return myPosition; }
-	@property void position(float value) { myPosition = value; }
-
-	@property Color color() { return myColor; }
-	@property void color(Color value) { myColor = value; }
-
-	this(float position, Color color)
-	{
-		myPosition = position;
-		myColor = color;
-	}
-}
-
-class GradientColorBrush
-{
-	private float myOrientation;
-	private GradientColorStop[] myStops;
-
-	@property float orientation() { return myOrientation; }
-	@property void orientation(float value) { myOrientation = value; }
-
-	@property const(GradientColorStop[]) stops() { return myStops; }
-
-	this(float orientation, GradientColorStop[] stops)
-	{
-		myOrientation = orientation;
-		myStops = stops;
-	}
-}
-
-abstract class RenderContext
-{
-	abstract void clear(Color color);
-	abstract void drawText(double x, double y, TextLayout textLayout);
-	abstract TextFormat createTextFormat(string fontFamily, float size, FontStyle style=FontStyle.normal, int weight=400, FontStretch stretch=FontStretch.normal);
-	abstract TextLayout createTextLayout(TextFormat format, string text="", Size box=Size(0.0, 0.0));
-	abstract ImageBrush createImageBrush(Image image);
-}
-
-struct Size
-{
-	double width;
-	double height;
-}
-
-Size unionWith(Size a, Size b)
-{
-	import std.algorithm.comparison : max;
-	return Size(max(a.width, b.width), max(a.height, b.height));
-}
-
-Size shrink(Size a, Size b)
-{
-	return Size(a.width - b.width, a.height - b.height);
-}
-
-struct Point
-{
-	double x;
-	double y;
-}
-
-Point offset(Point a, Point b)
-{
-	return Point(a.x+b.x, a.y+b.y);
-}
-
-struct Rect
-{
-	Point location;
-	Size size;
-}
-
-struct Color {
-	float r;
-	float g;
-	float b;
-}
 
 abstract class Visual : DependencyObject
 {
@@ -201,34 +62,6 @@ abstract class Visual : DependencyObject
 
 		invalidateMeasurement();
 	}
-}
-
-struct Thickness 
-{
-	double left;
-	double top;
-	double right;
-	double bottom;
-}
-
-double widthContribution(Thickness t)
-{
-	return t.left + t.right;
-}
-
-double heightContribution(Thickness t)
-{
-	return t.top + t.bottom;
-}
-
-enum HorizontalAlignment 
-{
-	Stretch, Center, Left, Right
-}
-
-enum VerticalAlignment 
-{
-	Stretch, Center, Top, Bottom
 }
 
 abstract class UIElement : Visual
@@ -360,116 +193,12 @@ import core.sys.windows.windows;
 version(Unicode)
 {
 	import std.utf : toUTF16z;
-	alias toTStringz = toUTF16z;
+	private alias toTStringz = toUTF16z;
 } 
 else
 {
 	import std.string : toStringz;
-	alias toTStringz = toStringz;
-}
-
-extern(Windows) HRESULT D2D1CreateFactory(D2D1_FACTORY_TYPE factoryType, REFIID riid, void* factoryOptions, IUnknown* ppIFactory);
-
-extern(Windows) HRESULT DWriteCreateFactory(DWRITE_FACTORY_TYPE FactoryType, REFIID IID, IUnknown* ppFactory);
-
-HRESULT D2D1CreateFactory(Factory : ID2D1Factory)(D2D1_FACTORY_TYPE factoryType, /*out*/ Factory* factory)
-{
-	return D2D1CreateFactory(factoryType, mixin("&IID_"~Factory.stringof), null, cast(IUnknown*)factory);
-}
-
-HRESULT DWriteCreateFactory(Factory : IDWriteFactory)(DWRITE_FACTORY_TYPE factoryType, /*out*/ Factory* factory)
-{
-	return DWriteCreateFactory(factoryType, mixin("&IID_"~Factory.stringof), cast(IUnknown*)factory);
-}
-
-private class WindowRenderContext : RenderContext {
-	private HWND myHwnd;
-	private ID2D1HwndRenderTarget myRenderTarget;
-	private IDWriteFactory1 myDirectWriteFactory;
-
-	this(HWND hwnd)
-	{
-		myHwnd = hwnd;
-
-		ID2D1Factory d2dFactory;
-		scope(exit) d2dFactory.Release();
-		auto hr = D2D1CreateFactory!ID2D1Factory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &d2dFactory);
-		if(hr != S_OK) throw new Error("Direct2D unable to start");
-
-		auto d2drtProperties = D2D1.RenderTargetProperties();
-		d2drtProperties.type = D2D1_RENDER_TARGET_TYPE_DEFAULT;
-
-		auto hwndrtProperties = D2D1_HWND_RENDER_TARGET_PROPERTIES.init;
-		hwndrtProperties.hwnd = myHwnd;
-
-		RECT rc;
-		GetClientRect(myHwnd, &rc);
-		hwndrtProperties.pixelSize = D2D_SIZE_U(rc.right - rc.left, rc.bottom - rc.top);
-
-		hr = d2dFactory.CreateHwndRenderTarget(&d2drtProperties, &hwndrtProperties, &myRenderTarget);
-		if(hr != S_OK) throw new Error("Direct2D unable to create render target");
-
-		hr = DWriteCreateFactory!IDWriteFactory1(DWRITE_FACTORY_TYPE_ISOLATED, &myDirectWriteFactory);
-		if(hr != S_OK) throw new Error("Direct2D unable to create render target");
-	}
-
-	~this()
-	{
-		if(myRenderTarget !is null) myRenderTarget.Release();
-		if(myDirectWriteFactory !is null) myDirectWriteFactory.Release();
-	}
-
-	void resize()
-	{
-		RECT rc;
-		GetClientRect(myHwnd, &rc);
-		auto newSize = D2D1_SIZE_U(rc.right - rc.left, rc.bottom - rc.top);
-		auto hr = myRenderTarget.Resize(&newSize);
-		if(hr != S_OK) throw new Error("Direct2D unable to resize render target");
-	}
-
-	void begin()
-	{
-		myRenderTarget.BeginDraw();
-	}
-
-	void end()
-	{
-		myRenderTarget.EndDraw();
-	}
-
-	override void clear(Color color)
-	{
-		auto col = D2D1.ColorF(color.r, color.g, color.b);
-		myRenderTarget.Clear(&col.color);
-	}
-
-	override TextFormat createTextFormat(string fontFamily, float size, FontStyle style=FontStyle.normal, int weight=400, FontStretch stretch=FontStretch.normal)
-	{
-		IDWriteTextFormat format;
-		auto hr = myDirectWriteFactory.CreateTextFormat("Gabriola", null, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, 72.0f, "en-us", &format);
-		if(hr != S_OK) throw new Error("DirectWrite unable to create text format");
-		format.Release();
-		// TODO
-		return null;
-	}
-
-	override TextLayout createTextLayout(TextFormat format, string text="", Size box=Size(0.0, 0.0))
-	{
-		// TODO
-		return null;
-	}
-
-	override ImageBrush createImageBrush(Image image)
-	{
-		// TODO
-		return null;
-	}
-
-	override void drawText(double x, double y, TextLayout textLayout)
-	{
-		// TODO
-	}
+	private alias toTStringz = toStringz;
 }
 
 class Window : ContentControl
@@ -487,7 +216,7 @@ class Window : ContentControl
 
 	private DescendantInfo[Visual] descendants;
 	private Window selfReference;
-	private WindowRenderContext myRenderContext;
+	private RenderContext myRenderContext;
 
 	private HINSTANCE hInstance = null;
 	private HWND hWnd = null;
@@ -620,7 +349,7 @@ class Window : ContentControl
 				auto pCreate = cast(CREATESTRUCT*)lParam;
 				auto wnd = cast(Window*)pCreate.lpCreateParams;
 				SetWindowLongPtr(hWnd, GWLP_USERDATA, cast(size_t)wnd);
-				wnd.myRenderContext = new WindowRenderContext(hWnd);
+				wnd.myRenderContext = new modernui.ui.direct2d.Direct2DRenderContext(hWnd);
 				return true;
 			}
 
