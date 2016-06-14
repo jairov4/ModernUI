@@ -11,3 +11,4 @@ Test/
 *.lst
 *.exe
 *.lib
+*.visualdproj
