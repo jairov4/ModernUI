@@ -26,6 +26,7 @@ Major aspects:
 How to use
 ==========
 
+```D
     class MyUserControl : UserControl
     {
     	static this() { registerClass!(typeof(this)); }
@@ -54,6 +55,7 @@ How to use
     auto ctl = new MyUserControl;
     ctl.property1 = 2;
     wnd.content = ctl;
+```
 
 Roadmap
 =======
