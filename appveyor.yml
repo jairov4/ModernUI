@@ -10,7 +10,7 @@ install:
 build_script:
   - git submodule update --init --recursive
   - call "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" amd64
-  - dub test --coverage --arch=x86_64
+  - dub test --coverage --arch=x86_64 --config=windows
 
 after_test:
   - dub fetch coverd
