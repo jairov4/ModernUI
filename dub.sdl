@@ -4,10 +4,15 @@ copyright "Copyright © 2016, JairoAndres"
 authors "jairov4"
 license "LGPL"
 versions "Unicode"
-dependency "modernui:directx-d" version="*"
+
 subPackage {
 	name "directx-d"
 	targetType "library"
 	sourcePaths "directx-d/src"
 	importPaths "directx-d/src"
+}
+
+configuration "windows" {
+	platforms "windows"
+	dependency "modernui:directx-d" version="*"
 }

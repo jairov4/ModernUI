@@ -3,6 +3,9 @@ module modernui.ui.direct2d;
 import modernui.ui.core;
 import modernui.ui.render;
 
+version(Windows) 
+{
+
 import core.sys.windows.windows;
 import directx.d2d1;
 import directx.d2d1helper;
@@ -126,4 +129,6 @@ private class Direct2DRenderContext : RenderContext {
 	{
 		// TODO
 	}
+}
+
 }

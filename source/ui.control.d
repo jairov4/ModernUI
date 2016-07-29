@@ -188,197 +188,201 @@ abstract class ContentControl : UIElement
 	}
 }
 
-import core.sys.windows.windows;
-
-version(Unicode)
+version(Windows)
 {
-	import std.utf : toUTF16z;
-	private alias toTStringz = toUTF16z;
-} 
-else
-{
-	import std.string : toStringz;
-	private alias toTStringz = toStringz;
-}
+	import core.sys.windows.windows;
 
-class Window : ContentControl
-{
-	static this() { registerClass!(typeof(this)); }
-
-	static bool isClassRegistered = false;
-
-	static immutable string className = "ModernUIWindow";
-
-	private struct DescendantInfo {
-		int level;
-		Array!Subscription subscriptions;
-	}
-
-	private DescendantInfo[Visual] descendants;
-	private Window selfReference;
-	private RenderContext myRenderContext;
-
-	private HINSTANCE hInstance = null;
-	private HWND hWnd = null;
-
-	private void registerWindowClass() {
-		HWND hWnd;
-		MSG  msg;
-		WNDCLASS wndclass;
-
-		wndclass.style         = CS_OWNDC | CS_HREDRAW | CS_VREDRAW;
-		wndclass.lpfnWndProc   = &WindowProc;
-		wndclass.cbClsExtra    = 0;
-		wndclass.cbWndExtra    = 0;
-		wndclass.hInstance     = hInstance;
-		wndclass.hIcon         = LoadIcon(null, IDI_APPLICATION);
-		wndclass.hCursor       = LoadCursor(null, IDC_ARROW);
-		wndclass.hbrBackground = cast(HBRUSH)GetStockObject(WHITE_BRUSH);
-		wndclass.lpszMenuName  = null;
-		wndclass.lpszClassName = className.toTStringz;
-
-		if (!RegisterClass(&wndclass))
-		{
-			throw new Error("Error registering the window class");
-		}
-	}
-
-	private void createWindow()
+	version(Unicode)
 	{
-		Window* wnd = &selfReference;
-		hWnd = CreateWindowEx(
-					0, 
-					className.toTStringz,  // window class name
-					"test".toTStringz,     // window caption
-					WS_THICKFRAME   |
-					WS_MAXIMIZEBOX  |
-					WS_MINIMIZEBOX  |
-					WS_SYSMENU      |
-					WS_VISIBLE,           // window style
-					CW_USEDEFAULT,        // initial x position
-					CW_USEDEFAULT,        // initial y position
-					600,                  // initial x size
-					400,                  // initial y size
-					HWND_DESKTOP,         // parent window handle
-					null,                 // window menu handle
-					hInstance,            // program instance handle
-					wnd);                 // creation parameters;
-
-		if(hWnd is null)
-		{
-			throw new Error("Could not create window");
-		}
+		import std.utf : toUTF16z;
+		private alias toTStringz = toUTF16z;
+	} 
+	else
+	{
+		import std.string : toStringz;
+		private alias toTStringz = toStringz;
 	}
 
-	this()
+	class Window : ContentControl
 	{
-		selfReference = this;
-		hInstance = GetModuleHandle(null);
-		if(!isClassRegistered) 
-		{
-			registerWindowClass();
-			isClassRegistered = true;
+		static this() { registerClass!(typeof(this)); }
+
+		static bool isClassRegistered = false;
+
+		static immutable string className = "ModernUIWindow";
+
+		private struct DescendantInfo {
+			int level;
+			Array!Subscription subscriptions;
 		}
 
-		createWindow();
+		private DescendantInfo[Visual] descendants;
+		private Window selfReference;
+		private RenderContext myRenderContext;
 
-		auto desc = DescendantInfo.init;
-		desc.level = 0;
-		descendants[this] = desc;
+		private HINSTANCE hInstance = null;
+		private HWND hWnd = null;
 
-		visualChildren.itemsAdded.then!(ItemsAdded!Visual)(&onDescendantsAdded);
-		visualChildren.itemsRemoved.then!(ItemsRemoved!Visual)(&onDescendantsRemoved);
-	}
+		private void registerWindowClass() {
+			HWND hWnd;
+			MSG  msg;
+			WNDCLASS wndclass;
 
-	void onDescendantsAdded(ItemsAdded!Visual x)
-	{
-		foreach(newItem; x.newItems)
+			wndclass.style         = CS_OWNDC | CS_HREDRAW | CS_VREDRAW;
+			wndclass.lpfnWndProc   = &WindowProc;
+			wndclass.cbClsExtra    = 0;
+			wndclass.cbWndExtra    = 0;
+			wndclass.hInstance     = hInstance;
+			wndclass.hIcon         = LoadIcon(null, IDI_APPLICATION);
+			wndclass.hCursor       = LoadCursor(null, IDC_ARROW);
+			wndclass.hbrBackground = cast(HBRUSH)GetStockObject(WHITE_BRUSH);
+			wndclass.lpszMenuName  = null;
+			wndclass.lpszClassName = className.toTStringz;
+
+			if (!RegisterClass(&wndclass))
+			{
+				throw new Error("Error registering the window class");
+			}
+		}
+
+		private void createWindow()
 		{
+			Window* wnd = &selfReference;
+			hWnd = CreateWindowEx(
+						0, 
+						className.toTStringz,  // window class name
+						"test".toTStringz,     // window caption
+						WS_THICKFRAME   |
+						WS_MAXIMIZEBOX  |
+						WS_MINIMIZEBOX  |
+						WS_SYSMENU      |
+						WS_VISIBLE,           // window style
+						CW_USEDEFAULT,        // initial x position
+						CW_USEDEFAULT,        // initial y position
+						600,                  // initial x size
+						400,                  // initial y size
+						HWND_DESKTOP,         // parent window handle
+						null,                 // window menu handle
+						hInstance,            // program instance handle
+						wnd);                 // creation parameters;
+
+			if(hWnd is null)
+			{
+				throw new Error("Could not create window");
+			}
+		}
+
+		this()
+		{
+			selfReference = this;
+			hInstance = GetModuleHandle(null);
+			if(!isClassRegistered) 
+			{
+				registerWindowClass();
+				isClassRegistered = true;
+			}
+
+			createWindow();
+
 			auto desc = DescendantInfo.init;
-			auto subscription = newItem.visualChildren.itemsAdded.then!(ItemsAdded!Visual)(&onDescendantsAdded);
-			desc.subscriptions.insertBack(subscription);
-			subscription = newItem.visualChildren.itemsRemoved.then!(ItemsRemoved!Visual)(&onDescendantsRemoved);
-			desc.subscriptions.insertBack(subscription);
-			desc.level = descendants[newItem.visualParent].level + 1;
-			descendants[newItem] = desc;
+			desc.level = 0;
+			descendants[this] = desc;
+
+			visualChildren.itemsAdded.then!(ItemsAdded!Visual)(&onDescendantsAdded);
+			visualChildren.itemsRemoved.then!(ItemsRemoved!Visual)(&onDescendantsRemoved);
 		}
-	}
 
-	void onDescendantsRemoved(ItemsRemoved!Visual x)
-	{
-		foreach(oldItem; x.oldItems)
+		// For new descendants added, ensure its children are tracked too
+		void onDescendantsAdded(ItemsAdded!Visual x)
 		{
-			auto desc = descendants[oldItem];
-			foreach(subscription; desc.subscriptions)
+			foreach(newItem; x.newItems)
 			{
-				subscription.release;
-			}
-			descendants.remove(oldItem);
-		}
-	}
-
-	void show()
-	{
-		ShowWindow(hWnd, SW_SHOWDEFAULT);
-		UpdateWindow(hWnd);
-	}
-
-	void messageLoop()
-	{
-		MSG  msg;
-		while (GetMessageA(&msg, null, 0, 0))
-		{
-			TranslateMessage(&msg);
-			DispatchMessageA(&msg);
-		}
-	}
-
-	protected override void render(RenderContext rc)
-	{
-		rc.clear(Color(1.0,1.0,1.0));
-		foreach(child; visualChildren) child.render(rc);
-	}
-
-	extern(Windows)
-	static LRESULT WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) nothrow
-	{
-		try
-		{
-			if(message == WM_NCCREATE)
-			{
-				auto pCreate = cast(CREATESTRUCT*)lParam;
-				auto wnd = cast(Window*)pCreate.lpCreateParams;
-				SetWindowLongPtr(hWnd, GWLP_USERDATA, cast(size_t)wnd);
-				wnd.myRenderContext = new modernui.ui.direct2d.Direct2DRenderContext(hWnd);
-				return true;
-			}
-
-			auto self = cast(Window*)GetWindowLongPtr(hWnd, GWLP_USERDATA);
-			switch (message)
-			{
-				case WM_PAINT:
-					self.myRenderContext.begin;
-					scope(exit) self.myRenderContext.end;
-					self.render(self.myRenderContext);
-					break;
-
-				case WM_DESTROY:
-					PostQuitMessage(0);
-					break;
-
-				case WM_SIZE:
-					self.myRenderContext.resize;
-					break;
-
-				default:
-					return DefWindowProcA(hWnd, message, wParam, lParam);
+				auto desc = DescendantInfo.init;
+				auto subscription = newItem.visualChildren.itemsAdded.then!(ItemsAdded!Visual)(&onDescendantsAdded);
+				desc.subscriptions.insertBack(subscription);
+				subscription = newItem.visualChildren.itemsRemoved.then!(ItemsRemoved!Visual)(&onDescendantsRemoved);
+				desc.subscriptions.insertBack(subscription);
+				desc.level = descendants[newItem.visualParent].level + 1;
+				descendants[newItem] = desc;
 			}
 		}
-		catch(Throwable t)
+
+		void onDescendantsRemoved(ItemsRemoved!Visual x)
 		{
-			PostQuitMessage(240);
+			foreach(oldItem; x.oldItems)
+			{
+				auto desc = descendants[oldItem];
+				foreach(subscription; desc.subscriptions)
+				{
+					subscription.release;
+				}
+				descendants.remove(oldItem);
+			}
 		}
 
-		return 0;
+		void show()
+		{
+			ShowWindow(hWnd, SW_SHOWDEFAULT);
+			UpdateWindow(hWnd);
+		}
+
+		void messageLoop()
+		{
+			MSG  msg;
+			while (GetMessageA(&msg, null, 0, 0))
+			{
+				TranslateMessage(&msg);
+				DispatchMessageA(&msg);
+			}
+		}
+
+		protected override void render(RenderContext rc)
+		{
+			rc.clear(Color(1.0,1.0,1.0));
+			foreach(child; visualChildren) child.render(rc);
+		}
+
+		extern(Windows)
+		static LRESULT WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) nothrow
+		{
+			try
+			{
+				if(message == WM_NCCREATE)
+				{
+					auto pCreate = cast(CREATESTRUCT*)lParam;
+					auto wnd = cast(Window*)pCreate.lpCreateParams;
+					SetWindowLongPtr(hWnd, GWLP_USERDATA, cast(size_t)wnd);
+					wnd.myRenderContext = new modernui.ui.direct2d.Direct2DRenderContext(hWnd);
+					return true;
+				}
+
+				auto self = cast(Window*)GetWindowLongPtr(hWnd, GWLP_USERDATA);
+				switch (message)
+				{
+					case WM_PAINT:
+						self.myRenderContext.begin;
+						scope(exit) self.myRenderContext.end;
+						self.render(self.myRenderContext);
+						break;
+
+					case WM_DESTROY:
+						PostQuitMessage(0);
+						break;
+
+					case WM_SIZE:
+						self.myRenderContext.resize;
+						break;
+
+					default:
+						return DefWindowProcA(hWnd, message, wParam, lParam);
+				}
+			}
+			catch(Throwable t)
+			{
+				PostQuitMessage(240);
+			}
+
+			return 0;
+		}
 	}
 }
