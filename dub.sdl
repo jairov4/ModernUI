@@ -14,5 +14,6 @@ subPackage {
 
 configuration "windows" {
 	platforms "windows"
+	targetType "executable"
 	dependency "modernui:directx-d" version="*"
 }

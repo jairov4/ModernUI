@@ -41,7 +41,7 @@ private HRESULT DWriteCreateFactory(Factory : IDWriteFactory)(DWRITE_FACTORY_TYP
 	return DWriteCreateFactory(factoryType, mixin("&IID_"~Factory.stringof), cast(IUnknown*)factory);
 }
 
-private class Direct2DRenderContext : RenderContext {
+class Direct2DRenderContext : RenderContext {
 	private HWND myHwnd;
 	private ID2D1HwndRenderTarget myRenderTarget;
 	private IDWriteFactory1 myDirectWriteFactory;
@@ -78,7 +78,7 @@ private class Direct2DRenderContext : RenderContext {
 		if(myDirectWriteFactory !is null) myDirectWriteFactory.Release();
 	}
 
-	void resize()
+	override void resize()
 	{
 		RECT rc;
 		GetClientRect(myHwnd, &rc);
