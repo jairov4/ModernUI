@@ -8,12 +8,9 @@ abstract class TextFormat
 
 abstract class TextLayout
 {
-	abstract @property void text(string value);
 	abstract @property string text();
 	abstract @property Size layoutBox();
-	abstract @property void layoutBox(Size box);
 	abstract @property Size layoutSize();
-	abstract @property Size measureSize();
 }
 
 enum FontStretch

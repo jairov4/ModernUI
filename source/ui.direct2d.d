@@ -3,6 +3,8 @@ module modernui.ui.direct2d;
 import modernui.ui.core;
 import modernui.ui.render;
 
+import std.string;
+
 version(Windows) 
 {
 
@@ -39,6 +41,45 @@ private HRESULT D2D1CreateFactory(Factory : ID2D1Factory)(D2D1_FACTORY_TYPE fact
 private HRESULT DWriteCreateFactory(Factory : IDWriteFactory)(DWRITE_FACTORY_TYPE factoryType, /*out*/ Factory* factory)
 {
 	return DWriteCreateFactory(factoryType, mixin("&IID_"~Factory.stringof), cast(IUnknown*)factory);
+}
+
+class Direct2DRenderContext_TextFormat : TextFormat {
+	private IDWriteTextFormat myField;
+
+	this(IDWriteTextFormat field) { myField = field; }
+	~this() { myField.Release(); }
+}
+
+class Direct2DRenderContext_TextLayout : TextLayout {
+	private IDWriteTextLayout myField;
+	private Size myLayoutBox;
+	private Size myLayoutSize;
+	private bool loadedMetrics;
+	private string myText;
+
+	this(IDWriteFactory1 factory, Direct2DRenderContext_TextFormat format, string text="", Size box=Size(0.0, 0.0)) {
+		loadedMetrics = false;
+		myText = text;
+		myLayoutBox = box;
+		auto hr = factory.CreateTextLayout(toTStringz(text), cast(int)text.length, format.myField, cast(float)box.width, cast(float)box.height, &myField); 
+		if(hr != S_OK) throw new Error("DirectWrite unable to create text layout");
+	}
+
+	~this() { myField.Release(); }
+
+	private void ensureMetrics() {
+		if(loadedMetrics) return;
+		DWRITE_TEXT_METRICS metrics;
+		auto hr = myField.GetMetrics(&metrics);
+		if(hr != S_OK) throw new Error("DirectWrite unable to get metrics for text layout");
+		myLayoutSize.width = metrics.width;
+		myLayoutSize.height = metrics.height;
+		loadedMetrics = true;
+	}
+
+	override @property string text() { return myText; }
+	override @property Size layoutBox() { return myLayoutBox; }
+	override @property Size layoutSize() { ensureMetrics(); return myLayoutSize; }
 }
 
 class Direct2DRenderContext : RenderContext {
@@ -106,17 +147,38 @@ class Direct2DRenderContext : RenderContext {
 	override TextFormat createTextFormat(string fontFamily, float size, FontStyle style=FontStyle.normal, int weight=400, FontStretch stretch=FontStretch.normal)
 	{
 		IDWriteTextFormat format;
-		auto hr = myDirectWriteFactory.CreateTextFormat("Gabriola", null, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, 72.0f, "en-us", &format);
+		int d2dStyle;
+		switch(style) {
+			case FontStyle.normal: d2dStyle = DWRITE_FONT_STYLE_NORMAL; break;
+			case FontStyle.italic: d2dStyle = DWRITE_FONT_STYLE_ITALIC; break;
+			case FontStyle.oblique: d2dStyle = DWRITE_FONT_STYLE_OBLIQUE; break;
+			default: throw new Error("Invalid style");
+		}
+
+		int d2dFontStretch;
+		switch(stretch) {
+			case FontStretch.ultraCondensed: d2dFontStretch = DWRITE_FONT_STRETCH_ULTRA_CONDENSED; break;
+			case FontStretch.extraCondensed: d2dFontStretch = DWRITE_FONT_STRETCH_EXTRA_CONDENSED; break;
+			case FontStretch.condensed: d2dFontStretch = DWRITE_FONT_STRETCH_CONDENSED; break;
+			case FontStretch.semiCondensed: d2dFontStretch = DWRITE_FONT_STRETCH_SEMI_CONDENSED; break;
+			case FontStretch.normal: d2dFontStretch = DWRITE_FONT_STRETCH_NORMAL; break;
+			case FontStretch.semiExpanded: d2dFontStretch = DWRITE_FONT_STRETCH_SEMI_EXPANDED; break;
+			case FontStretch.expanded: d2dFontStretch = DWRITE_FONT_STRETCH_EXPANDED; break;
+			case FontStretch.extraExpanded: d2dFontStretch = DWRITE_FONT_STRETCH_EXTRA_EXPANDED; break;
+			case FontStretch.ultraExpanded: d2dFontStretch = DWRITE_FONT_STRETCH_ULTRA_EXPANDED; break;
+			default: throw new Error("Invalid stretch");
+		}
+
+		auto hr = myDirectWriteFactory.CreateTextFormat(toTStringz(fontFamily), null, weight, d2dStyle, d2dFontStretch, size, "en-us", &format);
 		if(hr != S_OK) throw new Error("DirectWrite unable to create text format");
-		format.Release();
-		// TODO
-		return null;
+		auto tf = new Direct2DRenderContext_TextFormat(format);
+		return tf;
 	}
 
 	override TextLayout createTextLayout(TextFormat format, string text="", Size box=Size(0.0, 0.0))
 	{
-		// TODO
-		return null;
+		auto tl = new Direct2DRenderContext_TextLayout(myDirectWriteFactory, cast(Direct2DRenderContext_TextFormat) format, text, box);
+		return tl;
 	}
 
 	override ImageBrush createImageBrush(Image image)
