@@ -43,21 +43,52 @@ private HRESULT DWriteCreateFactory(Factory : IDWriteFactory)(DWRITE_FACTORY_TYP
 	return DWriteCreateFactory(factoryType, mixin("&IID_"~Factory.stringof), cast(IUnknown*)factory);
 }
 
-class Direct2DRenderContext_TextFormat : TextFormat {
+class Direct2DRenderContext_TextFormat : TextFormat
+{
 	private IDWriteTextFormat myField;
 
-	this(IDWriteTextFormat field) { myField = field; }
+	this(IDWriteFactory directWriteFactory, string fontFamily, float size, FontStyle style=FontStyle.normal, int weight=400, FontStretch stretch=FontStretch.normal) 
+	{
+		int d2dStyle;
+		switch(style) 
+		{
+			case FontStyle.normal: d2dStyle = DWRITE_FONT_STYLE_NORMAL; break;
+			case FontStyle.italic: d2dStyle = DWRITE_FONT_STYLE_ITALIC; break;
+			case FontStyle.oblique: d2dStyle = DWRITE_FONT_STYLE_OBLIQUE; break;
+			default: throw new Error("Invalid style");
+		}
+
+		int d2dFontStretch;
+		switch(stretch) {
+			case FontStretch.ultraCondensed: d2dFontStretch = DWRITE_FONT_STRETCH_ULTRA_CONDENSED; break;
+			case FontStretch.extraCondensed: d2dFontStretch = DWRITE_FONT_STRETCH_EXTRA_CONDENSED; break;
+			case FontStretch.condensed: d2dFontStretch = DWRITE_FONT_STRETCH_CONDENSED; break;
+			case FontStretch.semiCondensed: d2dFontStretch = DWRITE_FONT_STRETCH_SEMI_CONDENSED; break;
+			case FontStretch.normal: d2dFontStretch = DWRITE_FONT_STRETCH_NORMAL; break;
+			case FontStretch.semiExpanded: d2dFontStretch = DWRITE_FONT_STRETCH_SEMI_EXPANDED; break;
+			case FontStretch.expanded: d2dFontStretch = DWRITE_FONT_STRETCH_EXPANDED; break;
+			case FontStretch.extraExpanded: d2dFontStretch = DWRITE_FONT_STRETCH_EXTRA_EXPANDED; break;
+			case FontStretch.ultraExpanded: d2dFontStretch = DWRITE_FONT_STRETCH_ULTRA_EXPANDED; break;
+			default: throw new Error("Invalid stretch");
+		}
+
+		auto hr = directWriteFactory.CreateTextFormat(toTStringz(fontFamily), null, weight, d2dStyle, d2dFontStretch, size, "en-us", &myField);
+		if(hr != S_OK) throw new Error("DirectWrite unable to create text format");
+	}
+
 	~this() { myField.Release(); }
 }
 
-class Direct2DRenderContext_TextLayout : TextLayout {
+class Direct2DRenderContext_TextLayout : TextLayout
+{
 	private IDWriteTextLayout myField;
 	private Size myLayoutBox;
 	private Size myLayoutSize;
 	private bool loadedMetrics;
 	private string myText;
 
-	this(IDWriteFactory1 factory, Direct2DRenderContext_TextFormat format, string text="", Size box=Size(0.0, 0.0)) {
+	this(IDWriteFactory1 factory, Direct2DRenderContext_TextFormat format, string text="", Size box=Size(0.0, 0.0))
+	{
 		loadedMetrics = false;
 		myText = text;
 		myLayoutBox = box;
@@ -67,7 +98,8 @@ class Direct2DRenderContext_TextLayout : TextLayout {
 
 	~this() { myField.Release(); }
 
-	private void ensureMetrics() {
+	private void ensureMetrics()
+	{
 		if(loadedMetrics) return;
 		DWRITE_TEXT_METRICS metrics;
 		auto hr = myField.GetMetrics(&metrics);
@@ -82,10 +114,12 @@ class Direct2DRenderContext_TextLayout : TextLayout {
 	override @property Size layoutSize() { ensureMetrics(); return myLayoutSize; }
 }
 
-class Direct2DRenderContext : RenderContext {
+class Direct2DRenderContext : RenderContext
+{
 	private HWND myHwnd;
 	private ID2D1HwndRenderTarget myRenderTarget;
 	private IDWriteFactory1 myDirectWriteFactory;
+	private ID2D1SolidColorBrush myBlackBrush; // TODO: temporary
 
 	this(HWND hwnd)
 	{
@@ -111,6 +145,10 @@ class Direct2DRenderContext : RenderContext {
 
 		hr = DWriteCreateFactory!IDWriteFactory1(DWRITE_FACTORY_TYPE_ISOLATED, &myDirectWriteFactory);
 		if(hr != S_OK) throw new Error("Direct2D unable to create render target");
+
+		auto col = D2D1.ColorF(D2D1.ColorF.Black).color;
+		hr = myRenderTarget.CreateSolidColorBrush(&col, null, &myBlackBrush);
+		if(hr != S_OK) throw new Error("Direct2D unable to create a solid brush");
 	}
 
 	~this()
@@ -146,32 +184,7 @@ class Direct2DRenderContext : RenderContext {
 
 	override TextFormat createTextFormat(string fontFamily, float size, FontStyle style=FontStyle.normal, int weight=400, FontStretch stretch=FontStretch.normal)
 	{
-		IDWriteTextFormat format;
-		int d2dStyle;
-		switch(style) {
-			case FontStyle.normal: d2dStyle = DWRITE_FONT_STYLE_NORMAL; break;
-			case FontStyle.italic: d2dStyle = DWRITE_FONT_STYLE_ITALIC; break;
-			case FontStyle.oblique: d2dStyle = DWRITE_FONT_STYLE_OBLIQUE; break;
-			default: throw new Error("Invalid style");
-		}
-
-		int d2dFontStretch;
-		switch(stretch) {
-			case FontStretch.ultraCondensed: d2dFontStretch = DWRITE_FONT_STRETCH_ULTRA_CONDENSED; break;
-			case FontStretch.extraCondensed: d2dFontStretch = DWRITE_FONT_STRETCH_EXTRA_CONDENSED; break;
-			case FontStretch.condensed: d2dFontStretch = DWRITE_FONT_STRETCH_CONDENSED; break;
-			case FontStretch.semiCondensed: d2dFontStretch = DWRITE_FONT_STRETCH_SEMI_CONDENSED; break;
-			case FontStretch.normal: d2dFontStretch = DWRITE_FONT_STRETCH_NORMAL; break;
-			case FontStretch.semiExpanded: d2dFontStretch = DWRITE_FONT_STRETCH_SEMI_EXPANDED; break;
-			case FontStretch.expanded: d2dFontStretch = DWRITE_FONT_STRETCH_EXPANDED; break;
-			case FontStretch.extraExpanded: d2dFontStretch = DWRITE_FONT_STRETCH_EXTRA_EXPANDED; break;
-			case FontStretch.ultraExpanded: d2dFontStretch = DWRITE_FONT_STRETCH_ULTRA_EXPANDED; break;
-			default: throw new Error("Invalid stretch");
-		}
-
-		auto hr = myDirectWriteFactory.CreateTextFormat(toTStringz(fontFamily), null, weight, d2dStyle, d2dFontStretch, size, "en-us", &format);
-		if(hr != S_OK) throw new Error("DirectWrite unable to create text format");
-		auto tf = new Direct2DRenderContext_TextFormat(format);
+		auto tf = new Direct2DRenderContext_TextFormat(myDirectWriteFactory, fontFamily, size, style, weight, stretch);
 		return tf;
 	}
 
@@ -189,7 +202,8 @@ class Direct2DRenderContext : RenderContext {
 
 	override void drawText(double x, double y, TextLayout textLayout)
 	{
-		// TODO
+		auto tl = cast(Direct2DRenderContext_TextLayout) textLayout;
+		myRenderTarget.DrawTextLayout(D2D1.Point2F(x, y), tl.myField, myBlackBrush);
 	}
 }
 
