@@ -1,16 +1,17 @@
-os: Visual Studio 2015
+image: 
+  - Visual Studio 2017
 
 install:
-  - ps: Start-FileDownload 'http://downloads.dlang.org/releases/2.x/2.071.2/dmd.2.071.2.windows.zip' -FileName 'dmd2.7z'
-  - 7z x dmd2.7z > nul
-  - set PATH=%CD%\dmd2\windows\bin;%CD%\dmd2\windows\bin64;%PATH%
-  - dmd.exe --version
-  - cinst dub
+  - ps: Start-FileDownload 'https://github.com/ldc-developers/ldc/releases/download/v1.9.0/ldc2-1.9.0-windows-x64.7z' -FileName 'ldc2.7z'
+  - 7z x ldc2.7z
+  - set PATH=%CD%\ldc2-1.9.0-windows-x64\bin;%PATH%
+  - ldc2 --version
 
 build_script:
   - git submodule update --init --recursive
-  - call "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" amd64
-  - dub test --coverage --arch=x86_64 --config=windows
+  - msvcEnv x64
+  - dub --config=windows
+  - dub test --coverage --config=windows
 
 after_test:
   - dub fetch coverd
