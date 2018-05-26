@@ -2,14 +2,14 @@ image:
   - Visual Studio 2017
 
 install:
-  - ps: Start-FileDownload 'https://github.com/ldc-developers/ldc/releases/download/v1.9.0/ldc2-1.9.0-windows-x64.7z' -FileName 'ldc2.7z'
-  - 7z x ldc2.7z
-  - set PATH=%CD%\ldc2-1.9.0-windows-x64\bin;%PATH%
+  - ps: Start-FileDownload 'https://github.com/ldc-developers/ldc/releases/download/v1.2.0/ldc2-1.2.0-win64-msvc.zip' -FileName 'ldc2.zip'
+  - 7z x ldc2.zip
+  - set PATH=%CD%\ldc2-1.2.0-win64-msvc\bin;%PATH%
   - ldc2 --version
 
 build_script:
   - git submodule update --init --recursive
-  - msvcEnv x64
+  - msvcEnv amd64
   - dub --config=windows
   - dub test --coverage --config=windows
 
